@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TalentMatch AI — Intelligent Resume Analysis & Career Assistant</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons (CDN) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Custom Stylesheets -->
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/dashboard.css">
+  <link rel="stylesheet" href="assets/css/analysis.css">
+  <link rel="stylesheet" href="assets/css/chat.css">
+</head>
+<body>
+
+  <!-- MAIN SPA APP CONTAINER -->
+  <div class="app-container">
+
+    <!-- INTERNAL APP SIDEBAR -->
+    <aside class="app-sidebar">
+      <div class="sidebar-header">
+        <a href="#dashboard" class="brand-logo">
+          <i class="fa-solid fa-wand-magic-sparkles gradient-text"></i>
+          <span>TalentMatch<span class="gradient-text">AI</span></span>
+        </a>
+      </div>
+
+      <div class="sidebar-menu">
+        <span class="sidebar-category">Core Platform</span>
+        <a href="#dashboard" class="sidebar-link active"><i class="fa-solid fa-house"></i> Dashboard</a>
+        <a href="#analyze" class="sidebar-link"><i class="fa-solid fa-file-circle-check"></i> Analyze Resume</a>
+        <a href="#compare" class="sidebar-link"><i class="fa-solid fa-code-compare"></i> Compare Resumes</a>
+        
+        <span class="sidebar-category">Targeting & Skills</span>
+        <a href="#jd-match" class="sidebar-link"><i class="fa-solid fa-bullseye"></i> JD Match Engine</a>
+        <a href="#skill-gap" class="sidebar-link"><i class="fa-solid fa-road"></i> Skill Gap Roadmap</a>
+        
+        <span class="sidebar-category">AI Co-Pilot</span>
+        <a href="#chat" class="sidebar-link"><i class="fa-solid fa-comments"></i> AI Resume Assistant</a>
+        <a href="#history" class="sidebar-link"><i class="fa-solid fa-clock-rotate-left"></i> Analysis History</a>
+        
+        <span class="sidebar-category">Account</span>
+        <a href="#profile" class="sidebar-link"><i class="fa-solid fa-user-gear"></i> User Profile</a>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="user-profile-summary">
+          <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80" class="user-avatar-sm" alt="User">
+          <div class="user-info-text">
+            <span class="user-name-text">Alex Morgan</span>
+            <span class="user-role-text">Pro Plan • 24 Scans</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="main-content">
+
+      <!-- TOP APP HEADER / NAVIGATION BAR -->
+      <header class="app-header">
+        <div class="header-title-wrap">
+          <button class="mobile-nav-toggle" id="mobile-nav-toggle"><i class="fa-solid fa-bars"></i></button>
+          <h2 class="header-page-title" id="header-page-title">Dashboard Overview</h2>
+        </div>
+
+        <!-- Global Search Input -->
+        <div class="header-search-wrap">
+          <i class="fa-solid fa-magnifying-glass search-icon-left"></i>
+          <input type="text" class="header-search-input" id="header-search-input" placeholder="Search scans, skills, or roles...">
+          <span class="search-shortcut-kbd">Ctrl K</span>
+        </div>
+
+        <div class="header-actions">
+          <!-- Notification Bell Button & Dropdown -->
+          <div class="notification-btn-wrap">
+            <button class="theme-toggle-btn" id="notification-btn" title="Notifications">
+              <i class="fa-solid fa-bell"></i>
+              <span class="notification-badge-count">3</span>
+            </button>
+            <div class="notification-dropdown" id="notification-dropdown">
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                <strong style="font-size: 0.95rem;">Notifications</strong>
+                <span class="badge badge-primary">3 New</span>
+              </div>
+              <div id="notification-items-container">
+                <!-- Dynamically Rendered -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Theme Toggle Button -->
+          <button class="theme-toggle-btn" id="theme-toggle-btn" title="Toggle Theme"><i class="fa-solid fa-sun"></i></button>
+
+          <!-- User Profile Dropdown Avatar -->
+          <div class="profile-dropdown-wrap">
+            <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80" class="profile-avatar-btn" id="profile-avatar-btn" alt="Avatar">
+            <div class="profile-dropdown-menu" id="profile-dropdown-menu">
+              <div class="profile-menu-item" onclick="Router.navigate('profile')"><i class="fa-solid fa-user-gear"></i> Profile Settings</div>
+              <div class="profile-menu-item" onclick="Router.navigate('profile')"><i class="fa-solid fa-crown"></i> Pro Subscription</div>
+              <div class="profile-menu-item" onclick="Auth.signOut()" style="color: var(--color-danger);"><i class="fa-solid fa-right-from-bracket"></i> Sign Out</div>
+            </div>
+          </div>
+
+          <a href="#analyze" class="btn btn-primary btn-sm"><i class="fa-solid fa-plus"></i> New Scan</a>
+        </div>
+      </header>
+
+      <!-- =================================================================== -->
+      <!-- PAGE 1: LOGIN PAGE (#login) -->
+      <!-- =================================================================== -->
+      <section id="view-login" class="page-view">
+        <div style="max-width: 440px; margin: 4rem auto;" class="glass-panel dashboard-card">
+          <div style="text-align: center; margin-bottom: 2rem;">
+            <i class="fa-solid fa-wand-magic-sparkles gradient-text" style="font-size: 2.5rem; margin-bottom: 1rem;"></i>
+            <h2>Welcome Back</h2>
+            <p style="color: var(--text-secondary);">Sign in to access your saved resume analyses</p>
+          </div>
+          <form onsubmit="event.preventDefault(); Auth.signIn(document.getElementById('login-email').value, document.getElementById('login-pass').value);">
+            <div style="margin-bottom: 1.25rem;">
+              <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">Email Address</label>
+              <input type="email" id="login-email" value="alex.morgan@talentmatch.ai" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);" required>
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+              <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">Password</label>
+              <input type="password" id="login-pass" value="••••••••••••" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
+          </form>
+          <p style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: var(--text-secondary);">
+            Don't have an account? <a href="#register">Create Account</a>
+          </p>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- PAGE 2: REGISTER PAGE (#register) -->
+      <!-- =================================================================== -->
+      <section id="view-register" class="page-view">
+        <div style="max-width: 440px; margin: 4rem auto;" class="glass-panel dashboard-card">
+          <div style="text-align: center; margin-bottom: 2rem;">
+            <i class="fa-solid fa-user-plus gradient-text" style="font-size: 2.5rem; margin-bottom: 1rem;"></i>
+            <h2>Create TalentMatch Account</h2>
+            <p style="color: var(--text-secondary);">Start optimizing your resume with Gemini AI</p>
+          </div>
+          <form onsubmit="event.preventDefault(); Auth.signUp(document.getElementById('reg-email').value, document.getElementById('reg-pass').value, document.getElementById('reg-name').value);">
+            <div style="margin-bottom: 1.25rem;">
+              <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">Full Name</label>
+              <input type="text" id="reg-name" placeholder="Alex Morgan" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);" required>
+            </div>
+            <div style="margin-bottom: 1.25rem;">
+              <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">Email Address</label>
+              <input type="email" id="reg-email" placeholder="alex@example.com" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);" required>
+            </div>
+            <div style="margin-bottom: 1.5rem;">
+              <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">Password</label>
+              <input type="password" id="reg-pass" placeholder="••••••••••••" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);" required>
+            </div>
+            <button type="submit" class="btn btn-primary" style="width: 100%;">Create Account</button>
+          </form>
+          <p style="text-align: center; margin-top: 1.5rem; font-size: 0.9rem; color: var(--text-secondary);">
+            Already registered? <a href="#login">Sign In</a>
+          </p>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- PAGE 3: DASHBOARD (#dashboard) -->
+      <!-- =================================================================== -->
+      <section id="view-dashboard" class="page-view active">
+        <!-- Welcome Banner -->
+        <div class="welcome-banner">
+          <div class="banner-decoration"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+          <h1 class="welcome-title">Welcome back, Alex!</h1>
+          <p class="welcome-desc">Your resume health index is up <strong>+12%</strong> this month. Run a quick scan or benchmark your resume against new target job descriptions.</p>
+          <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+            <a href="#analyze" class="btn btn-secondary btn-sm"><i class="fa-solid fa-upload"></i> Analyze New Resume</a>
+            <a href="#jd-match" class="btn btn-outline btn-sm" style="color: #fff; border-color: rgba(255,255,255,0.4);"><i class="fa-solid fa-bullseye"></i> Run JD Matcher</a>
+            <a href="#chat" class="btn btn-outline btn-sm" style="color: #fff; border-color: rgba(255,255,255,0.4);"><i class="fa-solid fa-comments"></i> Ask AI Assistant</a>
+          </div>
+        </div>
+
+        <!-- Metrics Grid -->
+        <div class="dashboard-grid" style="margin-top: 0;">
+          <div class="col-span-3">
+            <div class="glass-panel stat-card">
+              <div class="stat-icon"><i class="fa-solid fa-chart-line"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Overall ATS Average</span>
+                <span class="stat-value">89 / 100</span>
+                <span class="stat-trend up"><i class="fa-solid fa-arrow-up"></i> +5% improvement</span>
+              </div>
+            </div>
+          </div>
+          <div class="col-span-3">
+            <div class="glass-panel stat-card">
+              <div class="stat-icon" style="color: var(--color-success); background: var(--color-success-bg);"><i class="fa-solid fa-shield-check"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Resume Health Index</span>
+                <span class="stat-value">94%</span>
+                <span class="stat-trend up"><i class="fa-solid fa-circle-check"></i> Verified</span>
+              </div>
+            </div>
+          </div>
+          <div class="col-span-3">
+            <div class="glass-panel stat-card">
+              <div class="stat-icon" style="color: var(--color-warning); background: var(--color-warning-bg);"><i class="fa-solid fa-file-circle-check"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Scans Completed</span>
+                <span class="stat-value">18 / 30</span>
+                <span class="stat-trend"><i class="fa-solid fa-bolt"></i> 12 Scans Left</span>
+              </div>
+            </div>
+          </div>
+          <div class="col-span-3">
+            <div class="glass-panel stat-card">
+              <div class="stat-icon" style="color: var(--accent-secondary); background: rgba(168, 85, 247, 0.15);"><i class="fa-solid fa-bullseye"></i></div>
+              <div class="stat-info">
+                <span class="stat-label">Target Role Match</span>
+                <span class="stat-value">91%</span>
+                <span class="stat-trend up"><i class="fa-solid fa-arrow-up"></i> Top 5% Applicant</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="dashboard-grid">
+          <div class="col-span-8">
+            <div class="glass-panel dashboard-card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-chart-area"></i> ATS Score Improvement Trend</span>
+                <span class="badge badge-primary">v2.0 Active</span>
+              </div>
+              <div class="chart-container">
+                <canvas id="scoreTrendChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-span-4">
+            <div class="glass-panel dashboard-card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-hexagon-nodes"></i> Component Breakdown</span>
+              </div>
+              <div class="chart-container">
+                <canvas id="componentRadarChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Activity Feed & AI Suggestions -->
+          <div class="col-span-6">
+            <div class="glass-panel dashboard-card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-clock-rotate-left"></i> Recent Activity Feed</span>
+              </div>
+              <div class="activity-feed-list" id="dashboard-activity-feed">
+                <!-- Dynamically Rendered -->
+              </div>
+            </div>
+          </div>
+
+          <div class="col-span-6">
+            <div class="glass-panel dashboard-card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-lightbulb"></i> AI Suggestions Panel</span>
+              </div>
+              <div class="ai-suggestion-card">
+                <span class="ai-suggestion-title"><i class="fa-solid fa-sparkles"></i> Add Kubernetes & Helm Keywords</span>
+                <p style="font-size: 0.88rem; color: var(--text-secondary);">Your current resume target match for Google Senior AI Engineer is 92%. Adding container orchestration terms will boost it to 96%.</p>
+              </div>
+              <div class="ai-suggestion-card">
+                <span class="ai-suggestion-title"><i class="fa-solid fa-chart-pie"></i> Quantify Bullet Point #3</span>
+                <p style="font-size: 0.88rem; color: var(--text-secondary);">Bullet point #3 under Experience lacks measurable outcome metrics. Try adding latency reduction percentages.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- PAGE 4: RESUME ANALYSIS (#analyze) -->
+      <!-- =================================================================== -->
+      <section id="view-analyze" class="page-view">
+        <div class="dashboard-grid" style="margin-top: 0;">
+          <!-- Optional Job Description Text Input -->
+          <div class="col-span-12">
+            <div class="glass-panel dashboard-card" style="margin-bottom: 1rem; padding: 1.25rem;">
+              <label style="display: block; font-size: 0.9rem; font-weight: 700; margin-bottom: 0.5rem;"><i class="fa-solid fa-file-invoice"></i> Target Job Description (Optional)</label>
+              <textarea class="chat-input-field" id="jd-text-input" rows="2" style="width: 100%; border-radius: var(--border-radius-sm); font-size: 0.88rem;" placeholder="Paste job description text here to benchmark keyword match & semantic fit..."></textarea>
+            </div>
+          </div>
+
+          <!-- Upload Area & Progress Bar -->
+          <div class="col-span-12">
+            <div class="glass-panel dashboard-card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-cloud-arrow-up"></i> Upload Resume for Instant Analysis</span>
+                <span class="badge badge-info">PDF, DOCX Max 5MB</span>
+              </div>
+              <div class="dropzone" id="resume-dropzone">
+                <i class="fa-solid fa-file-arrow-up dropzone-icon"></i>
+                <h3>Drag & Drop Your Resume File Here</h3>
+                <p style="color: var(--text-secondary); margin-top: 0.5rem;">or click to browse local files from your computer</p>
+                <input type="file" id="resume-file-input" style="display: none;" accept=".pdf,.doc,.docx">
+              </div>
+
+              <!-- Upload Progress Indicator Bar -->
+              <div class="upload-progress-wrap" id="upload-progress-wrap">
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.4rem;">
+                  <span>Parsing & Scoring with Gemini Flash AI...</span>
+                  <span id="upload-pct-text">Processing</span>
+                </div>
+                <div class="progress-bar-wrap">
+                  <div class="progress-bar-fill" id="upload-progress-bar-fill" style="width: 0%;"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Document Preview Panel Mockup -->
+          <div class="col-span-12">
+            <div class="glass-panel dashboard-card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-file-lines"></i> Parsed Resume Preview & Data Inspector</span>
+                <div style="display: flex; gap: 0.5rem;">
+                  <button class="btn btn-outline btn-sm" onclick="App.handleDownloadPDF()"><i class="fa-solid fa-download"></i> Download Report (PDF)</button>
+                </div>
+              </div>
+              <div class="doc-tab-pills">
+                <button class="doc-tab-pill active">Parsed Summary</button>
+                <button class="doc-tab-pill">Work Experience</button>
+                <button class="doc-tab-pill">Extracted Skills</button>
+              </div>
+              <div class="document-preview-card">
+                <strong>NAME:</strong> Alex Morgan<br>
+                <strong>ROLE TARGET:</strong> Senior Full Stack & AI Systems Engineer<br>
+                <strong>EMAIL:</strong> alex.morgan@talentmatch.ai | <strong>PHONE:</strong> +1-555-019-2831<br><br>
+                <strong>PROFESSIONAL SUMMARY:</strong><br>
+                Driven Senior Full-Stack Engineer with 5+ years of experience architecting high-throughput FastAPI backends and modern React interfaces. Reduced overall API response latency by 45% using Redis caching and optimized PyTorch embeddings.
+              </div>
+            </div>
+          </div>
+
+          <!-- Score Radial Gauge & Component Cards -->
+          <div class="col-span-4">
+            <div class="glass-panel dashboard-card score-gauge-card">
+              <span class="card-title" style="margin-bottom: 0.5rem;"><i class="fa-solid fa-gauge-high"></i> Overall ATS Score</span>
+              <div class="score-radial-wrap">
+                <svg viewBox="0 0 160 160">
+                  <defs>
+                    <linearGradient id="scoreGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stop-color="#6366f1"/>
+                      <stop offset="100%" stop-color="#a855f7"/>
+                    </linearGradient>
+                  </defs>
+                  <circle class="score-radial-bg" cx="80" cy="80" r="70"></circle>
+                  <circle class="score-radial-meter" id="score-radial-meter" cx="80" cy="80" r="70"></circle>
+                </svg>
+                <div class="score-radial-text">
+                  <span class="score-num gradient-text" id="analysis-score-num">89</span>
+                  <span class="score-denom">OUT OF 100</span>
+                </div>
+              </div>
+              <span class="badge badge-success" style="margin-top: 0.5rem;">Excellent ATS Grade</span>
+            </div>
+          </div>
+
+          <div class="col-span-8">
+            <div class="glass-panel dashboard-card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-sliders"></i> 5-Component ATS Scores</span>
+              </div>
+              <div class="component-scores-grid" id="component-scores-grid">
+                <!-- Dynamically Rendered -->
+              </div>
+            </div>
+          </div>
+
+          <!-- Keyword Analysis & Issues -->
+          <div class="col-span-6">
+            <div class="glass-panel dashboard-card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-tags"></i> Extracted & Target Keywords</span>
+              </div>
+              <div class="keywords-pills-wrap" id="matched-keywords-container">
+                <!-- Dynamically Rendered -->
+              </div>
+            </div>
+          </div>
+
+          <div class="col-span-6">
+            <div class="glass-panel dashboard-card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-triangle-exclamation"></i> Actionable Issues & Recommendations</span>
+              </div>
+              <div class="issues-accordion-list">
+                <div class="issue-item-card active">
+                  <div class="issue-item-header" onclick="this.parentElement.classList.toggle('active')">
+                    <span class="issue-item-title"><i class="fa-solid fa-circle-exclamation" style="color: var(--color-warning);"></i> Incorporate Cloud Infrastructure Keywords</span>
+                    <i class="fa-solid fa-chevron-down issue-chevron"></i>
+                  </div>
+                  <div class="issue-item-body">
+                    <p>The target role emphasizes Kubernetes and Terraform for deployment pipelines.</p>
+                    <div class="how-to-fix-box">
+                      <strong>How to Fix:</strong> Add Terraform or Kubernetes under Infrastructure/DevOps skills section.
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- PAGE 5: RESUME COMPARISON (#compare) -->
+      <!-- =================================================================== -->
+      <section id="view-compare" class="page-view">
+        <div class="dashboard-grid" style="margin-top: 0;">
+          <div class="col-span-12">
+            <div class="glass-panel dashboard-card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-code-compare"></i> Side-by-Side Resume Comparison Matrix</span>
+                <button class="btn btn-primary btn-sm" onclick="App.showToast('Select files to compare', 'info')"><i class="fa-solid fa-plus"></i> Compare New File</button>
+              </div>
+              <div class="comparison-table-wrap">
+                <table class="comparison-table">
+                  <thead>
+                    <tr>
+                      <th>Resume Version</th>
+                      <th>ATS Score</th>
+                      <th>Formatting (/20)</th>
+                      <th>Keywords (/25)</th>
+                      <th>Skills Detected</th>
+                      <th>Recommendation Verdict</th>
+                    </tr>
+                  </thead>
+                  <tbody id="comparison-matrix-body">
+                    <!-- Dynamically Rendered -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="col-span-12">
+            <div class="glass-panel dashboard-card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-chart-bar"></i> Differential ATS Score Visualizer</span>
+              </div>
+              <div class="chart-container">
+                <canvas id="comparisonBarChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- PAGE 6: JOB DESCRIPTION MATCHING (#jd-match) -->
+      <!-- =================================================================== -->
+      <section id="view-jd-match" class="page-view">
+        <div class="dashboard-grid" style="margin-top: 0;">
+          <div class="col-span-12">
+            <div class="glass-panel dashboard-card" style="margin-bottom: 1.5rem;">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-bullseye"></i> Multi-Job Description Target Matcher</span>
+                <button class="btn btn-primary btn-sm" onclick="App.showToast('Paste Job Description text...', 'info')"><i class="fa-solid fa-paste"></i> Add New JD Target</button>
+              </div>
+              <p style="color: var(--text-secondary);">Benchmark your current active resume against multiple company job postings simultaneously.</p>
+            </div>
+          </div>
+
+          <div class="col-span-12">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;" id="jd-match-cards-wrap">
+              <!-- Dynamically Rendered -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- PAGE 7: SKILL GAP ANALYSIS (#skill-gap) -->
+      <!-- =================================================================== -->
+      <section id="view-skill-gap" class="page-view">
+        <div class="dashboard-grid" style="margin-top: 0;">
+          <div class="col-span-12">
+            <div class="glass-panel dashboard-card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-road"></i> AI-Generated Skill Roadmap & Learning Priorities</span>
+              </div>
+              <p style="color: var(--text-secondary);">Skill gaps identified based on sentence embeddings & skill validation checks against target Senior AI Architect postings.</p>
+              
+              <div class="skill-roadmap-list" id="skill-roadmap-container">
+                <!-- Dynamically Rendered -->
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- PAGE 8: AI RESUME ASSISTANT (#chat) -->
+      <!-- =================================================================== -->
+      <section id="view-chat" class="page-view">
+        <div class="chat-app-container">
+          <!-- Chat Sidebar -->
+          <div class="chat-sidebar">
+            <button class="btn btn-primary btn-sm chat-new-btn" onclick="App.showToast('New Chat session started!', 'success')"><i class="fa-solid fa-plus"></i> New Chat</button>
+            <span class="sidebar-category" style="padding-left: 0;">Quick Prompt Presets</span>
+            <div class="preset-prompts-list">
+              <button class="prompt-preset-chip" onclick="App.sendPresetPrompt('Rewrite summary for Senior Fullstack')"><i class="fa-solid fa-wand-magic"></i> Rewrite Summary</button>
+              <button class="prompt-preset-chip" onclick="App.sendPresetPrompt('Generate 3 bullet points with metrics')"><i class="fa-solid fa-list-check"></i> Generate Metrics</button>
+              <button class="prompt-preset-chip" onclick="App.sendPresetPrompt('Find missing keywords for Google AI Lead')"><i class="fa-solid fa-key"></i> Missing Keywords</button>
+            </div>
+          </div>
+
+          <!-- Chat Main Area -->
+          <div class="chat-main-area">
+            <div class="chat-messages-scroll" id="chat-messages-scroll">
+              <div class="chat-message-row assistant">
+                <div class="chat-avatar"><i class="fa-solid fa-robot"></i></div>
+                <div class="chat-bubble">
+                  Hello Alex! I am your <strong>TalentMatch AI Assistant</strong>. I can help you reword bullet points, optimize your summary for specific job descriptions, or answer any ATS formatting questions. How can I assist your job search today?
+                </div>
+              </div>
+            </div>
+
+            <!-- Chat Input Bar -->
+            <div class="chat-input-wrapper">
+              <input type="text" class="chat-input-field" id="chat-input" placeholder="Ask AI Assistant to rewrite bullet points, optimize summary, or add keywords...">
+              <button class="chat-send-btn" id="chat-send-btn"><i class="fa-solid fa-paper-plane"></i></button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- PAGE 9: RESUME HISTORY (#history) -->
+      <!-- =================================================================== -->
+      <section id="view-history" class="page-view">
+        <div class="dashboard-grid" style="margin-top: 0;">
+          <div class="col-span-12">
+            <div class="glass-panel dashboard-card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-clock-rotate-left"></i> Resume Scan History</span>
+                <span class="badge badge-primary">Database History</span>
+              </div>
+              <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+                <input type="text" class="chat-input-field" id="history-search-input" placeholder="Filter scans by title or filename..." style="border-radius: var(--border-radius-sm); flex: 1;">
+              </div>
+            </div>
+          </div>
+
+          <div class="col-span-12">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem;" id="history-cards-container">
+              <!-- Dynamically Rendered -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- =================================================================== -->
+      <!-- PAGE 10: USER PROFILE & SETTINGS (#profile) -->
+      <!-- =================================================================== -->
+      <section id="view-profile" class="page-view">
+        <div class="dashboard-grid" style="margin-top: 0;">
+          <div class="col-span-4">
+            <div class="glass-panel dashboard-card" style="text-align: center; padding: 2.5rem 1.5rem;">
+              <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin: 0 auto 1rem; border: 3px solid var(--accent-primary);" alt="Profile">
+              <h3>Alex Morgan</h3>
+              <p style="color: var(--text-secondary); font-size: 0.9rem;">Senior Full Stack Engineer</p>
+              <span class="badge badge-success" style="margin-top: 0.75rem;">Pro Analyst Subscription</span>
+            </div>
+          </div>
+
+          <div class="col-span-8">
+            <div class="glass-panel dashboard-card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-user-gear"></i> Target Career Preferences</span>
+              </div>
+              <form onsubmit="event.preventDefault(); App.showToast('Profile updated!', 'success');">
+                <div style="margin-bottom: 1.25rem;">
+                  <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">Target Job Title</label>
+                  <input type="text" value="Lead AI Systems Architect" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);">
+                </div>
+                <div style="margin-bottom: 1.25rem;">
+                  <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">Primary Technology Stack</label>
+                  <input type="text" value="Python, FastAPI, TypeScript, PyTorch, PostgreSQL, Docker" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);">
+                </div>
+                <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-floppy-disk"></i> Save Preferences</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- CDN Scripts -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  
+  <!-- Custom JS Modules -->
+  <script src="assets/js/mockData.js"></script>
+  <script src="assets/js/charts.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/router.js"></script>
+  <script src="assets/js/app.js"></script>
+
+</body>
+</html>
