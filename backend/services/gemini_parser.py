@@ -330,3 +330,32 @@ def parse_job_description(raw_text: str) -> Dict:
         f"{len(result.get('required_skills', []))} required skills"
     )
     return _validate_jd_result(result)
+
+
+def explain_results_with_gemini(nlp_results: Dict) -> str:
+    """
+    Use Gemini ONLY to generate a natural language executive explanation of the
+    already calculated NLP ATS score and recommendations.
+    Gemini does NOT compute or alter scores.
+    """
+    try:
+        model = _get_resume_model()
+        ats_score = nlp_results.get('ats_score', 0)
+        interpretation = nlp_results.get('interpretation', '')
+        missing_kw = nlp_results.get('missing_keywords', [])[:5]
+        strengths = nlp_results.get('strengths', [])[:3]
+
+        prompt = (
+            f"You are an expert career consultant. Explain these deterministic NLP ATS analysis results to the candidate.\n"
+            f"ATS Score: {ats_score}/100\n"
+            f"Interpretation: {interpretation}\n"
+            f"Strengths: {', '.join(strengths)}\n"
+            f"Missing Keywords: {', '.join(missing_kw)}\n\n"
+            f"Write a concise 2-sentence executive summary explaining the candidate's ATS performance "
+            f"and 2 actionable improvement tips."
+        )
+        return _call_gemini(model, prompt)
+    except Exception as exc:
+        logger.warning(f"Gemini explanation generation skipped/fallback: {exc}")
+        return nlp_results.get('interpretation', 'Analysis completed successfully by NLP pipeline.')
+

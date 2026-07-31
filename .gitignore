@@ -12,3 +12,8 @@ __pycache__/
 # ML models
 *.safetensors
 *.pkl
+
+
+.env
+
+backend/supabase/.env

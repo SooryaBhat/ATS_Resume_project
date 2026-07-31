@@ -128,11 +128,11 @@
           <form onsubmit="event.preventDefault(); Auth.signIn(document.getElementById('login-email').value, document.getElementById('login-pass').value);">
             <div style="margin-bottom: 1.25rem;">
               <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">Email Address</label>
-              <input type="email" id="login-email" value="alex.morgan@talentmatch.ai" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);" required>
+              <input type="email" id="login-email" placeholder="you@example.com" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);" required>
             </div>
             <div style="margin-bottom: 1.5rem;">
               <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">Password</label>
-              <input type="password" id="login-pass" value="••••••••••••" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);" required>
+              <input type="password" id="login-pass" placeholder="Your password" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);" required>
             </div>
             <button type="submit" class="btn btn-primary" style="width: 100%;">Sign In</button>
           </form>
@@ -318,7 +318,7 @@
               <!-- Upload Progress Indicator Bar -->
               <div class="upload-progress-wrap" id="upload-progress-wrap">
                 <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.4rem;">
-                  <span>Parsing & Scoring with Gemini Flash AI...</span>
+                  <span>Parsing & Scoring with NLP Pipeline...</span>
                   <span id="upload-pct-text">Processing</span>
                 </div>
                 <div class="progress-bar-wrap">
@@ -328,26 +328,58 @@
             </div>
           </div>
 
-          <!-- Document Preview Panel Mockup -->
-          <div class="col-span-12">
+          <!-- Job Description Target Match Panel (Dynamically Rendered when JD is provided) -->
+          <div class="col-span-12" id="jd-match-panel-wrap" style="display: none;">
             <div class="glass-panel dashboard-card">
               <div class="card-header">
-                <span class="card-title"><i class="fa-solid fa-file-lines"></i> Parsed Resume Preview & Data Inspector</span>
+                <span class="card-title"><i class="fa-solid fa-bullseye" style="color: var(--accent-primary);"></i> Resume ↔ Job Description Alignment Analysis</span>
+                <span class="badge badge-success" id="jd-match-score-badge">0% Match</span>
+              </div>
+              <div class="dashboard-grid" style="margin-top: 0.5rem; margin-bottom: 0;">
+                <div class="col-span-6">
+                  <div style="margin-bottom: 1rem;">
+                    <span style="font-size: 0.88rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;">Sentence Transformers BERT Cosine Similarity</span>
+                    <strong style="font-size: 1.25rem; color: var(--text-primary);" id="jd-similarity-val">0.0%</strong>
+                    <div class="progress-bar-wrap" style="margin-top: 0.4rem;">
+                      <div class="progress-bar-fill" id="jd-similarity-bar" style="width: 0%;"></div>
+                    </div>
+                  </div>
+                  <div>
+                    <span style="font-size: 0.88rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;"><i class="fa-solid fa-circle-check" style="color: var(--color-success);"></i> Matching Skills</span>
+                    <div class="keywords-pills-wrap" id="jd-matching-skills-container"></div>
+                  </div>
+                </div>
+                <div class="col-span-6">
+                  <div style="margin-bottom: 1rem;">
+                    <span style="font-size: 0.88rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;"><i class="fa-solid fa-circle-xmark" style="color: var(--color-danger);"></i> Missing Required Skills</span>
+                    <div class="keywords-pills-wrap" id="jd-missing-skills-container"></div>
+                  </div>
+                  <div>
+                    <span style="font-size: 0.88rem; color: var(--text-secondary); display: block; margin-bottom: 0.3rem;"><i class="fa-solid fa-tags" style="color: var(--color-warning);"></i> Missing Keywords</span>
+                    <div class="keywords-pills-wrap" id="jd-missing-keywords-container"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Document Preview & PDF Inspector Panel -->
+          <div class="col-span-12" id="resume-preview-panel-wrap">
+            <div class="glass-panel dashboard-card">
+              <div class="card-header">
+                <span class="card-title"><i class="fa-solid fa-file-pdf" style="color: var(--accent-primary);"></i> Parsed Resume & Document Preview</span>
                 <div style="display: flex; gap: 0.5rem;">
                   <button class="btn btn-outline btn-sm" onclick="App.handleDownloadPDF()"><i class="fa-solid fa-download"></i> Download Report (PDF)</button>
                 </div>
               </div>
-              <div class="doc-tab-pills">
-                <button class="doc-tab-pill active">Parsed Summary</button>
-                <button class="doc-tab-pill">Work Experience</button>
-                <button class="doc-tab-pill">Extracted Skills</button>
+              <div class="doc-tab-pills" id="resume-preview-tabs">
+                <button class="doc-tab-pill active" id="tab-pill-summary" onclick="App.switchPreviewTab('summary')">Parsed Summary</button>
+                <button class="doc-tab-pill" id="tab-pill-skills" onclick="App.switchPreviewTab('skills')">Extracted Skills</button>
+                <button class="doc-tab-pill" id="tab-pill-text" onclick="App.switchPreviewTab('text')">Extracted Raw Text</button>
+                <button class="doc-tab-pill" id="tab-pill-pdf" onclick="App.switchPreviewTab('pdf')">PDF Viewer</button>
               </div>
-              <div class="document-preview-card">
-                <strong>NAME:</strong> Alex Morgan<br>
-                <strong>ROLE TARGET:</strong> Senior Full Stack & AI Systems Engineer<br>
-                <strong>EMAIL:</strong> alex.morgan@talentmatch.ai | <strong>PHONE:</strong> +1-555-019-2831<br><br>
-                <strong>PROFESSIONAL SUMMARY:</strong><br>
-                Driven Senior Full-Stack Engineer with 5+ years of experience architecting high-throughput FastAPI backends and modern React interfaces. Reduced overall API response latency by 45% using Redis caching and optimized PyTorch embeddings.
+              <div class="document-preview-card" id="resume-preview-body" style="min-height: 200px;">
+                <p style="color: var(--text-muted); text-align: center; padding: 2rem;">Upload a resume file above to view the live parsed preview and data extraction inspector.</p>
               </div>
             </div>
           </div>
@@ -475,10 +507,36 @@
           <div class="col-span-12">
             <div class="glass-panel dashboard-card" style="margin-bottom: 1.5rem;">
               <div class="card-header">
-                <span class="card-title"><i class="fa-solid fa-bullseye"></i> Multi-Job Description Target Matcher</span>
-                <button class="btn btn-primary btn-sm" onclick="App.showToast('Paste Job Description text...', 'info')"><i class="fa-solid fa-paste"></i> Add New JD Target</button>
+                <span class="card-title"><i class="fa-solid fa-bullseye"></i> Resume ↔ Job Description Alignment Engine</span>
+                <span class="badge badge-primary">NLP & BERT Embeddings</span>
               </div>
-              <p style="color: var(--text-secondary);">Benchmark your current active resume against multiple company job postings simultaneously.</p>
+              <p style="color: var(--text-secondary); margin-bottom: 1rem;">Benchmark your resume directly against any Job Description to extract similarity, match %, matching skills, missing skills, missing keywords, and ATS recommendations.</p>
+
+              <!-- Active Resume State Banner -->
+              <div id="jd-matcher-active-resume-info" style="margin-bottom: 1.25rem; padding: 0.85rem 1.1rem; background: var(--bg-tertiary); border-left: 4px solid var(--accent-primary); border-radius: var(--border-radius-sm); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+                <div>
+                  <i class="fa-solid fa-file-pdf" style="color: var(--accent-primary); margin-right: 0.5rem; font-size: 1.1rem;"></i>
+                  <span style="font-size: 0.9rem;">Active Resume: <strong id="jd-active-resume-filename" style="color: var(--text-primary);">No resume uploaded yet</strong></span>
+                </div>
+                <span class="badge badge-primary" id="jd-active-resume-score">Upload resume below or run scan in Analysis view</span>
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                  <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 0.4rem;"><i class="fa-solid fa-file-invoice"></i> Step 1: Target Job Description Text</label>
+                  <textarea class="chat-input-field" id="jd-matcher-text-input" rows="4" style="width: 100%; border-radius: var(--border-radius-sm); font-size: 0.88rem;" placeholder="Paste the target job description requirements here..."></textarea>
+                </div>
+                <div>
+                  <label style="display: block; font-size: 0.85rem; font-weight: 700; margin-bottom: 0.4rem;"><i class="fa-solid fa-file-arrow-up"></i> Step 2: Upload Resume File</label>
+                  <div class="dropzone" id="jd-matcher-dropzone" style="padding: 1.25rem;">
+                    <i class="fa-solid fa-cloud-arrow-up dropzone-icon" style="font-size: 1.8rem; margin-bottom: 0.3rem;"></i>
+                    <h4 style="font-size: 0.95rem;">Select Resume (PDF or DOCX)</h4>
+                    <p style="font-size: 0.78rem; color: var(--text-secondary);" id="jd-matcher-filename">Click or drag & drop file</p>
+                    <input type="file" id="jd-matcher-file-input" style="display: none;" accept=".pdf,.doc,.docx">
+                  </div>
+                </div>
+              </div>
+              <button class="btn btn-primary" id="jd-matcher-submit-btn" style="width: 100%;"><i class="fa-solid fa-bolt"></i> Run Resume ↔ JD Match Analysis</button>
             </div>
           </div>
 
@@ -532,7 +590,7 @@
               <div class="chat-message-row assistant">
                 <div class="chat-avatar"><i class="fa-solid fa-robot"></i></div>
                 <div class="chat-bubble">
-                  Hello Alex! I am your <strong>TalentMatch AI Assistant</strong>. I can help you reword bullet points, optimize your summary for specific job descriptions, or answer any ATS formatting questions. How can I assist your job search today?
+                  Hello! I am your <strong>TalentMatch AI Assistant</strong>. I can help you reword bullet points, optimize your summary for specific job descriptions, or answer any ATS formatting questions. How can I assist your job search today?
                 </div>
               </div>
             </div>
@@ -578,10 +636,12 @@
         <div class="dashboard-grid" style="margin-top: 0;">
           <div class="col-span-4">
             <div class="glass-panel dashboard-card" style="text-align: center; padding: 2.5rem 1.5rem;">
-              <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=256&q=80" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; margin: 0 auto 1rem; border: 3px solid var(--accent-primary);" alt="Profile">
-              <h3>Alex Morgan</h3>
-              <p style="color: var(--text-secondary); font-size: 0.9rem;">Senior Full Stack Engineer</p>
-              <span class="badge badge-success" style="margin-top: 0.75rem;">Pro Analyst Subscription</span>
+              <div style="width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)); color: #fff; font-size: 2.5rem; font-weight: 700; display: flex; align-items: center; justify-content: center; margin: 0 auto 1rem;" id="profile-avatar-placeholder">
+                <i class="fa-solid fa-user"></i>
+              </div>
+              <h3 id="profile-display-name">Candidate Profile</h3>
+              <p style="color: var(--text-secondary); font-size: 0.9rem;" id="profile-display-role">Target Role</p>
+              <span class="badge badge-success" style="margin-top: 0.75rem;" id="profile-display-plan">Free Analyst Plan</span>
             </div>
           </div>
 
@@ -590,16 +650,20 @@
               <div class="card-header">
                 <span class="card-title"><i class="fa-solid fa-user-gear"></i> Target Career Preferences</span>
               </div>
-              <form onsubmit="event.preventDefault(); App.showToast('Profile updated!', 'success');">
+              <form id="profile-form">
+                <div style="margin-bottom: 1.25rem;">
+                  <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">Full Name</label>
+                  <input type="text" id="profile-full-name" placeholder="Your Full Name" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);">
+                </div>
                 <div style="margin-bottom: 1.25rem;">
                   <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">Target Job Title</label>
-                  <input type="text" value="Lead AI Systems Architect" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);">
+                  <input type="text" id="profile-target-role" placeholder="e.g. Senior Software Engineer" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);">
                 </div>
                 <div style="margin-bottom: 1.25rem;">
                   <label style="display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 0.4rem;">Primary Technology Stack</label>
-                  <input type="text" value="Python, FastAPI, TypeScript, PyTorch, PostgreSQL, Docker" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);">
+                  <input type="text" id="profile-tech-stack" placeholder="e.g. Python, FastAPI, React, PostgreSQL, Docker" class="chat-input-field" style="width: 100%; border-radius: var(--border-radius-sm);">
                 </div>
-                <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-floppy-disk"></i> Save Preferences</button>
+                <button type="button" id="profile-save-btn" class="btn btn-primary btn-sm"><i class="fa-solid fa-floppy-disk"></i> Save Preferences</button>
               </form>
             </div>
           </div>
@@ -610,16 +674,20 @@
   </div>
 
   <!-- CDN Scripts -->
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Chart.js — UMD bundle, works in browsers correctly -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   
-  <!-- Custom JS Modules -->
-  <script src="assets/js/mockData.js"></script>
-  <script src="assets/js/charts.js"></script>
-  <script src="assets/js/api.js"></script>
-  <script src="assets/js/auth.js"></script>
-  <script src="assets/js/router.js"></script>
-  <script src="assets/js/app.js"></script>
+  <!-- NOTE: @supabase/supabase-js v2.111+ has no browser/UMD bundle.
+       Auth is now handled via direct Supabase REST API calls in auth.js.
+       No Supabase CDN script required. -->
+
+  <!-- Custom JS Modules — ?v=3 forces browser to bypass cache -->
+  <script src="assets/js/mockData.js?v=3"></script>
+  <script src="assets/js/charts.js?v=3"></script>
+  <script src="assets/js/api.js?v=3"></script>
+  <script src="assets/js/auth.js?v=3"></script>
+  <script src="assets/js/router.js?v=3"></script>
+  <script src="assets/js/app.js?v=3"></script>
 
 </body>
 </html>

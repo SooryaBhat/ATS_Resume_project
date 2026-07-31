@@ -5,6 +5,9 @@
 
 const API_BASE_URL = 'http://localhost:8000/api/v1';
 
+// Cache the /config response — fetched once, shared with Auth module
+let _cachedConfig = null;
+
 const API = {
 
   // ── Internal helper ───────────────────────────────────────────────────────
@@ -30,10 +33,19 @@ const API = {
   // ── Public config & health ────────────────────────────────────────────────
 
   async fetchConfig() {
+    if (_cachedConfig) return _cachedConfig;
     try {
-      const resp = await fetch(`${API_BASE_URL}/config`);
-      return resp.ok ? await resp.json() : null;
-    } catch { return null; }
+      const controller = new AbortController();
+      const timeoutId  = setTimeout(() => controller.abort(), 5000);
+      const resp = await fetch(`${API_BASE_URL}/config`, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      if (!resp.ok) return null;
+      _cachedConfig = await resp.json();
+      return _cachedConfig;
+    } catch (err) {
+      console.error('[API] fetchConfig failed:', err.message);
+      return null;
+    }
   },
 
   async checkHealth() {
@@ -45,9 +57,10 @@ const API = {
 
   // ── Resume Analysis ───────────────────────────────────────────────────────
 
-  async analyzeResume(file, jobDescription = '', token = null) {
+  async analyzeResume(file = null, jobDescription = '', token = null, resumeText = null) {
     const formData = new FormData();
-    formData.append('resume', file);
+    if (file) formData.append('resume', file);
+    if (resumeText) formData.append('resume_text', resumeText);
     if (jobDescription) formData.append('job_description', jobDescription);
 
     const headers = {};
@@ -103,17 +116,35 @@ const API = {
     return this._json(resp);
   },
 
-  // ── PDF Reports ───────────────────────────────────────────────────────────
-
-  async downloadPDF(analysisId = null, token = null) {
-    const url = analysisId
-      ? `${API_BASE_URL}/history/${analysisId}/pdf`
-      : `${API_BASE_URL}/generate-pdf`;
+  /**
+   * Download a PDF report for a specific analysis.
+   * - With analysisId: GET /history/{id}/pdf  (re-generates and streams)
+   * - Without analysisId: requires currentAnalysis data, POSTs to /generate-pdf
+   */
+  async downloadPDF(analysisId = null, analysisData = null, token = null) {
     const headers = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
-    const resp = await fetch(url, { method: 'GET', headers });
-    if (!resp.ok) throw new Error('Failed to download PDF report');
-    return resp.blob();
+
+    if (analysisId) {
+      // Re-generate from stored analysis
+      const resp = await fetch(`${API_BASE_URL}/history/${analysisId}/pdf`, { headers });
+      if (!resp.ok) throw new Error(`PDF generation failed (${resp.status})`);
+      return resp.blob();
+    }
+
+    if (analysisData) {
+      // Generate from in-memory analysis result
+      headers['Content-Type'] = 'application/json';
+      const resp = await fetch(`${API_BASE_URL}/generate-pdf`, {
+        method:  'POST',
+        headers,
+        body:    JSON.stringify(analysisData),
+      });
+      if (!resp.ok) throw new Error(`PDF generation failed (${resp.status})`);
+      return resp.blob();
+    }
+
+    throw new Error('downloadPDF requires either an analysisId or analysisData.');
   },
 
   async getReports(token = null) {
@@ -345,5 +376,23 @@ const API = {
       headers: this._headers(token),
     });
     return this._json(resp);
+  },
+
+  async downloadPDF(analysisId = 'latest', analysisData = null, token = null) {
+    const aid = analysisId || analysisData?.id || 'latest';
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const resp = await fetch(`${API_BASE_URL}/analyses/${aid}/pdf`, {
+      method: 'GET',
+      headers,
+    });
+
+    if (!resp.ok) {
+      const errJson = await resp.json().catch(() => ({}));
+      throw new Error(errJson.detail || `PDF Download failed (HTTP ${resp.status})`);
+    }
+
+    return await resp.blob();
   },
 };

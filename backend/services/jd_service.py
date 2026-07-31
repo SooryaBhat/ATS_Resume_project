@@ -65,7 +65,7 @@ async def match_analysis_with_jd(
     5. Return structured match result
     """
     from backend.services.jd_matcher import compare_resume_with_jd
-    from backend.services.gemini_parser import parse_job_description
+    from backend.services.nlp_pipeline import nlp_parse_job_description
 
     # 1. Fetch analysis
     analysis = await get_analysis_by_id(analysis_id, user_id)
@@ -84,16 +84,16 @@ async def match_analysis_with_jd(
     resume_keywords = analysis_result.get('matched_keywords', []) + analysis_result.get('missing_keywords', [])
     resume_skills   = []  # skills not stored separately — use keywords as proxy
 
-    # Parse JD to extract structured keywords
+    # Parse JD to extract structured keywords using deterministic NLP pipeline
     try:
-        parsed_jd = parse_job_description(jd_text)
+        parsed_jd = nlp_parse_job_description(jd_text, nlp)
         jd_keywords = list(set(
             parsed_jd.get('keywords', []) +
             parsed_jd.get('required_skills', []) +
             parsed_jd.get('preferred_skills', [])
         ))
     except Exception as exc:
-        logger.warning(f'JD parsing failed, falling back to raw text: {exc}')
+        logger.warning(f'NLP JD parsing failed, falling back to raw text: {exc}')
         jd_keywords = jd_text.split()[:50]
 
     match_result = compare_resume_with_jd(
@@ -106,6 +106,8 @@ async def match_analysis_with_jd(
         nlp=nlp,
     )
 
+    from backend.database.supabase_db import update_analysis_context
+
     # 4. Persist
     match_payload = {
         **match_result,
@@ -113,6 +115,16 @@ async def match_analysis_with_jd(
         'job_title':    jd.get('job_title', ''),
     }
     await save_jd_match(user_id, jd_id, analysis_id, match_payload)
+
+    # Enrich active analysis record with JD match context
+    await update_analysis_context(analysis_id, user_id, {
+        'job_description':       jd_text,
+        'jd_comparison':          match_result,
+        'matching_skills':        match_result.get('matching_skills', []),
+        'missing_skills':         match_result.get('missing_skills', match_result.get('skills_gap', [])),
+        'match_percentage':       match_result.get('match_percentage', 0.0),
+        'resume_jd_similarity':  match_result.get('semantic_similarity', 0.0),
+    })
 
     # 5. Return
     return {

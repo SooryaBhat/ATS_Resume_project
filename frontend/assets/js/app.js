@@ -1,6 +1,16 @@
 /* ==========================================================================
    TalentMatch AI - Application Core Controller
    Full live-API integration — MockData used only as fallback.
+
+   Changes vs. previous version:
+   1. App.init() awaits Auth.init() before Router.init() — no auth race
+   2. bootstrapLiveData() only runs when authenticated
+   3. handleDownloadPDF calls corrected API signature
+   4. applyDashboardStats guards chart updates (updateScoreTrend /
+      updateComponentRadar may not exist — uses rebuildCharts instead)
+   5. handleProfileSave reads inputs by placeholder/index correctly
+   6. handleChatSend awaits Auth.ready() before creating sessions
+   7. Removed broken openModal/closeModal stubs (no modal HTML exists)
    ========================================================================== */
 
 const App = {
@@ -10,10 +20,19 @@ const App = {
 
   async init() {
     this.initTheme();
+
+    // Auth MUST complete before Router shows any protected route
     await Auth.init();
+
+    // Router uses Auth.isAuthenticated() — must run after Auth.init()
     Router.init();
+
     this.bindEvents();
-    await this.bootstrapLiveData();
+
+    // Only bootstrap live data if authenticated
+    if (Auth.isAuthenticated()) {
+      await this.bootstrapLiveData();
+    }
   },
 
   // ── 1. Theme ──────────────────────────────────────────────────────────────
@@ -53,6 +72,7 @@ const App = {
     toast.className = `toast toast-${type}`;
     const icon = type === 'success' ? 'fa-check-circle'
                : type === 'error'   ? 'fa-exclamation-circle'
+               : type === 'warning' ? 'fa-exclamation-triangle'
                :                      'fa-info-circle';
     toast.innerHTML = `<i class="fa-solid ${icon}"></i> <span>${message}</span>`;
     container.appendChild(toast);
@@ -63,16 +83,7 @@ const App = {
     }, 3500);
   },
 
-  // ── 3. Modal Manager ──────────────────────────────────────────────────────
-
-  openModal(modalId) {
-    document.getElementById(modalId)?.classList.add('active');
-  },
-  closeModal(modalId) {
-    document.getElementById(modalId)?.classList.remove('active');
-  },
-
-  // ── 4. Global Event Listeners ─────────────────────────────────────────────
+  // ── 3. Global Event Listeners ─────────────────────────────────────────────
 
   bindEvents() {
     document.getElementById('theme-toggle-btn')?.addEventListener('click', () => this.toggleTheme());
@@ -141,25 +152,47 @@ const App = {
       this.filterHistory(e.target.value.toLowerCase());
     });
 
-    // Profile form
-    document.getElementById('profile-save-btn')?.addEventListener('click', () => this.handleProfileSave());
+    // Profile save button
+    document.getElementById('profile-save-btn')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      this.handleProfileSave();
+    });
+
+    // JD Matcher form handlers
+    const jdDropzone  = document.getElementById('jd-matcher-dropzone');
+    const jdFileInput = document.getElementById('jd-matcher-file-input');
+    const jdSubmitBtn = document.getElementById('jd-matcher-submit-btn');
+
+    if (jdDropzone && jdFileInput) {
+      jdDropzone.addEventListener('click', () => jdFileInput.click());
+      jdFileInput.addEventListener('change', (e) => {
+        if (e.target.files.length) {
+          const fn = e.target.files[0].name;
+          const fnEl = document.getElementById('jd-matcher-filename');
+          if (fnEl) fnEl.textContent = `Selected: ${fn}`;
+        }
+      });
+    }
+
+    jdSubmitBtn?.addEventListener('click', () => this.handleJdMatchSubmit());
   },
 
-  // ── 5. Bootstrap — load live data on startup ──────────────────────────────
+  // ── 4. Bootstrap — load live data on startup ──────────────────────────────
 
   async bootstrapLiveData() {
     const token = Auth.getAccessToken();
+    if (!token) return;   // guard — only run when authenticated
+
+    console.log('[App] Bootstrapping live data...');
 
     // Load user profile first (populates sidebar name, plan badge)
-    if (token) {
-      await this.loadUserProfile(token);
-    }
+    await this.loadUserProfile(token);
 
-    // Load dashboard data
+    // Load dashboard data (parallel)
     await this.loadLiveDashboardData();
   },
 
-  // ── 6. Profile ────────────────────────────────────────────────────────────
+  // ── 5. Profile ────────────────────────────────────────────────────────────
 
   async loadUserProfile(token = null) {
     try {
@@ -169,7 +202,7 @@ const App = {
       this.userProfile = profile;
       this.applyProfileToUI(profile);
     } catch (err) {
-      console.warn('Profile load fallback:', err);
+      console.warn('[App] Profile load warning (non-fatal):', err.message);
     }
   },
 
@@ -179,24 +212,30 @@ const App = {
     // Sidebar user info
     const nameEl = document.querySelector('.user-name-text');
     const roleEl = document.querySelector('.user-role-text');
-    if (nameEl) nameEl.textContent = profile.full_name || profile.id?.slice(0, 8) || 'User';
-    if (roleEl) roleEl.textContent = `${profile.plan === 'free' ? 'Free' : 'Pro'} Plan • ${profile.scans_used} Scans`;
+    const plan   = profile.plan === 'free' ? 'Free Plan' : 'Pro Plan';
+    if (nameEl) nameEl.textContent = profile.full_name || Auth.currentUser?.email?.split('@')[0] || 'User';
+    if (roleEl) roleEl.textContent = `${plan} • ${profile.scans_used || 0} Scans`;
 
-    // Profile page form values
-    const targetRoleInput = document.querySelector('#view-profile input[type="text"]');
-    if (targetRoleInput && profile.target_role) targetRoleInput.value = profile.target_role;
+    // Profile page fields
+    const nameInput  = document.getElementById('profile-full-name');
+    const roleInput  = document.getElementById('profile-target-role');
+    const stackInput = document.getElementById('profile-tech-stack');
 
-    const stackInput = document.querySelectorAll('#view-profile input[type="text"]')[1];
-    if (stackInput && profile.primary_tech_stack?.length) {
-      stackInput.value = profile.primary_tech_stack.join(', ');
+    if (nameInput && profile.full_name) nameInput.value = profile.full_name;
+    if (roleInput && profile.target_role) roleInput.value = profile.target_role;
+    if (stackInput && profile.primary_tech_stack) {
+      stackInput.value = Array.isArray(profile.primary_tech_stack)
+        ? profile.primary_tech_stack.join(', ')
+        : profile.primary_tech_stack;
     }
 
-    // Profile card name & badge
-    const profileH3 = document.querySelector('#view-profile h3');
-    if (profileH3) profileH3.textContent = profile.full_name || 'User';
+    const dispName = document.getElementById('profile-display-name');
+    const dispRole = document.getElementById('profile-display-role');
+    const dispPlan = document.getElementById('profile-display-plan');
 
-    const profileRoleEl = document.querySelector('#view-profile p');
-    if (profileRoleEl) profileRoleEl.textContent = profile.target_role || 'Software Engineer';
+    if (dispName) dispName.textContent = profile.full_name || Auth.currentUser?.email || 'Candidate Profile';
+    if (dispRole) dispRole.textContent = profile.target_role || 'Target Role Not Specified';
+    if (dispPlan) dispPlan.textContent = `${plan} (${profile.scans_used || 0}/${profile.scans_limit || 30} scans)`;
 
     // Dashboard welcome banner
     const welcomeTitle = document.querySelector('.welcome-title');
@@ -208,18 +247,19 @@ const App = {
 
   async handleProfileSave() {
     const token = Auth.getAccessToken();
-    if (!token) return;
-    try {
-      const inputs   = document.querySelectorAll('#view-profile input[type="text"]');
-      const targetRole  = inputs[0]?.value?.trim() || '';
-      const techStack   = inputs[1]?.value?.trim() || '';
-      const fullNameEl  = document.querySelector('#reg-name') || inputs[0];
+    if (!token) { this.showToast('Please sign in first.', 'error'); return; }
 
+    const fullName   = document.getElementById('profile-full-name')?.value?.trim() || '';
+    const targetRole = document.getElementById('profile-target-role')?.value?.trim() || '';
+    const techStack  = document.getElementById('profile-tech-stack')?.value?.trim() || '';
+
+    try {
+      this.showToast('Updating profile preferences...', 'info');
       await API.updateProfile({
+        full_name:          fullName,
         target_role:        targetRole,
         primary_tech_stack: techStack.split(',').map(s => s.trim()).filter(Boolean),
       }, token);
-
       this.showToast('Profile updated successfully!', 'success');
       await this.loadUserProfile(token);
     } catch (err) {
@@ -227,40 +267,65 @@ const App = {
     }
   },
 
-  // ── 7. Dashboard Data ─────────────────────────────────────────────────────
+  // ── 6. Dashboard Data ─────────────────────────────────────────────────────
 
   async loadLiveDashboardData() {
     const token = Auth.getAccessToken();
 
-    // Parallel: notifications + activity + history + dashboard stats
-    const [notifications, activity, history, stats] = await Promise.allSettled([
-      token ? API.getNotifications(20, token) : Promise.resolve(MockData.notifications),
-      token ? API.getActivityFeed(10, token)  : Promise.resolve(MockData.activityFeed),
-      token ? API.getHistory(token)           : Promise.resolve(MockData.historyList),
+    // Parallel: notifications + activity + history + dashboard stats + JD matches + roadmap + comparisons + profile
+    const [notifications, activity, history, stats, jdMatches, roadmap, comparisons, profile] = await Promise.allSettled([
+      token ? API.getNotifications(20, token) : Promise.resolve([]),
+      token ? API.getActivityFeed(10, token)  : Promise.resolve([]),
+      token ? API.getHistory(token)           : Promise.resolve([]),
       token ? API.getDashboardStats(token)    : Promise.resolve(null),
+      token ? API.getJDMatches(token)         : Promise.resolve([]),
+      token ? API.getSkillRoadmap(token)      : Promise.resolve([]),
+      token ? API.getComparisons(token)       : Promise.resolve([]),
+      token ? API.getProfile(token)           : Promise.resolve(null),
     ]);
 
     // Notifications
-    const notifData = notifications.status === 'fulfilled' ? notifications.value : MockData.notifications;
-    this.renderNotifications(Array.isArray(notifData) ? notifData : MockData.notifications);
+    const notifData = notifications.status === 'fulfilled' && Array.isArray(notifications.value) ? notifications.value : [];
+    this.renderNotifications(notifData);
 
     // Activity feed
-    const actData = activity.status === 'fulfilled' ? activity.value : MockData.activityFeed;
-    this.renderActivityFeed(Array.isArray(actData) ? actData : MockData.activityFeed);
+    const actData = activity.status === 'fulfilled' && Array.isArray(activity.value) ? activity.value : [];
+    this.renderActivityFeed(actData);
 
     // History
     const histData = history.status === 'fulfilled' && Array.isArray(history.value) ? history.value : [];
-    this.renderHistoryView(histData.length > 0 ? histData : MockData.historyList);
+    this.renderHistoryView(histData);
 
-    // Dashboard stats — update stat cards and charts with live data
+    // Profile
+    if (profile.status === 'fulfilled' && profile.value) {
+      this.userProfile = profile.value;
+      this.applyProfileToUI(profile.value);
+    }
+
+    // Dashboard stats
     if (stats.status === 'fulfilled' && stats.value) {
       this.applyDashboardStats(stats.value);
     }
 
-    // JD Match + Skill Gap still use API if available, else mock
-    this.renderJdMatchView(MockData.jdMatchList);
-    this.renderSkillGapView(MockData.skillGapRoadmap);
-    this.renderComparisonView(MockData.resumeComparison);
+    // JD Match
+    const jdmData = jdMatches.status === 'fulfilled' && Array.isArray(jdMatches.value) ? jdMatches.value : [];
+    this.renderJdMatchView(jdmData);
+
+    // Skill Gap Roadmap
+    const roadData = roadmap.status === 'fulfilled' && Array.isArray(roadmap.value) ? roadmap.value : [];
+    this.renderSkillGapView(roadData);
+
+    // Comparison Matrix
+    const compData = comparisons.status === 'fulfilled' && Array.isArray(comparisons.value) ? comparisons.value : [];
+    this.renderComparisonView(compData);
+
+    // Active analysis fallback for preview
+    if (!this.currentAnalysis && histData.length > 0) {
+      this.currentAnalysis = histData[0].analysis_result || histData[0];
+    }
+    if (this.currentAnalysis) {
+      this.renderResumePreview(this.currentAnalysis);
+    }
   },
 
   applyDashboardStats(stats) {
@@ -269,45 +334,58 @@ const App = {
     // Stat cards — update values
     const statValues = document.querySelectorAll('.stat-value');
     if (statValues.length >= 4) {
-      if (stats.avg_ats_score > 0)   statValues[0].textContent = `${stats.avg_ats_score} / 100`;
-      if (stats.health_index > 0)    statValues[1].textContent = `${stats.health_index}%`;
-      if (stats.scans_used !== undefined) statValues[2].textContent = `${stats.scans_used} / ${stats.scans_limit}`;
-      if (stats.top_match_pct > 0)   statValues[3].textContent = `${stats.top_match_pct}%`;
+      statValues[0].textContent = stats.avg_ats_score > 0 ? `${stats.avg_ats_score} / 100` : '—';
+      statValues[1].textContent = stats.health_index > 0 ? `${stats.health_index}%` : '—';
+      statValues[2].textContent = `${stats.scans_used || 0} / ${stats.scans_limit || 30}`;
+      statValues[3].textContent = stats.top_match_pct > 0 ? `${stats.top_match_pct}%` : '—';
     }
 
-    // Score trend chart — feed live data
-    if (stats.score_trend?.length > 1) {
-      const trendLabels = stats.score_trend.map(p => p.label);
-      const trendScores = stats.score_trend.map(p => p.score);
-      ChartEngine.updateScoreTrend(trendLabels, trendScores);
-    }
-
-    // Component radar — feed latest analysis data
-    if (stats.latest_component_scores) {
-      const cs = stats.latest_component_scores;
-      const radarScores = [
-        cs.formatting || 0,
-        cs.keywords || 0,
-        cs.content || 0,
-        cs.skill_validation || 0,
-        cs.ats_compatibility || 0,
-      ];
-      ChartEngine.updateComponentRadar(radarScores);
-    }
-
-    // Scans trend text
+    // Stat trend badge
     const trendEls = document.querySelectorAll('.stat-trend');
     if (trendEls.length >= 1 && stats.improvement_pct !== 0) {
       const sign = stats.improvement_pct > 0 ? '+' : '';
       trendEls[0].innerHTML = `<i class="fa-solid fa-arrow-${stats.improvement_pct >= 0 ? 'up' : 'down'}"></i> ${sign}${stats.improvement_pct}% vs last scan`;
       trendEls[0].className = `stat-trend ${stats.improvement_pct >= 0 ? 'up' : 'down'}`;
     }
+
+    // Charts — re-initialise with live data when available
+    if (stats.score_trend?.length > 0) {
+      const chartData = {
+        labels: stats.score_trend.map(p => p.label),
+        scores: stats.score_trend.map(p => p.score),
+      };
+      ChartEngine.initScoreTrendChart('scoreTrendChart', chartData);
+    }
+
+    if (stats.latest_component_scores) {
+      const cs = stats.latest_component_scores;
+      const maxes = [20, 25, 25, 15, 15];
+      const rawScores = [
+        cs.formatting        || 0,
+        cs.keywords          || 0,
+        cs.content           || 0,
+        cs.skill_validation  || 0,
+        cs.ats_compatibility || 0,
+      ];
+      const radarData = {
+        labels:      ['Formatting', 'Keywords & Skills', 'Content Quality', 'Skill Validation', 'ATS Compatibility'],
+        scores:      rawScores,
+        percentages: rawScores.map((s, i) => Math.round((s / maxes[i]) * 100)),
+      };
+      ChartEngine.initComponentRadarChart('componentRadarChart', radarData);
+    }
   },
 
-  // ── 8. Resume Upload & Analysis ───────────────────────────────────────────
+  // ── 7. Resume Upload & Analysis ───────────────────────────────────────────
 
   async handleResumeUpload(file) {
-    const dropzone    = document.getElementById('resume-dropzone');
+    if (!Auth.isAuthenticated()) {
+      this.showToast('Please sign in to analyze a resume.', 'warning');
+      Router.navigate('login');
+      return;
+    }
+
+    const dropzone     = document.getElementById('resume-dropzone');
     const progressWrap = document.getElementById('upload-progress-wrap');
     const progressBar  = document.getElementById('upload-progress-bar-fill');
     const jdInput      = document.getElementById('jd-text-input')?.value || '';
@@ -328,12 +406,7 @@ const App = {
       if (progressBar) progressBar.style.width = '100%';
       setTimeout(() => progressWrap?.classList.remove('active'), 500);
 
-      this.currentAnalysis = result;
-
-      // Store analysis ID for chat context
-      if (result.id) {
-        localStorage.setItem('talentmatch_last_analysis_id', result.id);
-      }
+      this.setAnalysisState(result);
 
       this.showToast('Analysis Complete! View score breakdown below.', 'success');
 
@@ -351,42 +424,191 @@ const App = {
     } catch (err) {
       progressWrap?.classList.remove('active');
       this.showToast(`Analysis Error: ${err.message}`, 'error');
-      console.error('Analysis failed:', err);
+      console.error('[App] Analysis failed:', err);
     }
   },
 
-  // ── 9. Render Analysis Results ────────────────────────────────────────────
+  setAnalysisState(result) {
+    if (!result) return;
+    this.currentAnalysis = result;
+    try {
+      localStorage.setItem('talentmatch_last_analysis_data', JSON.stringify(result));
+      if (result.id) {
+        localStorage.setItem('talentmatch_last_analysis_id', result.id);
+      }
+    } catch (e) {
+      console.warn('[App] Could not persist analysis to localStorage:', e);
+    }
+    this.updateActiveResumeBanner(result);
+  },
+
+  restoreAnalysisState() {
+    if (this.currentAnalysis) return this.currentAnalysis;
+    try {
+      const raw = localStorage.getItem('talentmatch_last_analysis_data');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        this.currentAnalysis = parsed;
+        this.updateActiveResumeBanner(parsed);
+        return parsed;
+      }
+    } catch (e) { /* ignore */ }
+    return null;
+  },
+
+  updateActiveResumeBanner(data) {
+    const fnEl = document.getElementById('jd-active-resume-filename');
+    const scoreEl = document.getElementById('jd-active-resume-score');
+    if (!fnEl) return;
+
+    if (data && (data.filename || data.resume_name || data.ats_score !== undefined)) {
+      const fn = data.filename || data.resume_name || 'Uploaded Resume';
+      const score = Math.round(data.ats_score || 0);
+      fnEl.textContent = fn;
+      if (scoreEl) {
+        scoreEl.textContent = `ATS Score: ${score}/100`;
+        scoreEl.className = score >= 80 ? 'badge badge-success' : 'badge badge-warning';
+      }
+    } else {
+      fnEl.textContent = 'No resume uploaded yet';
+      if (scoreEl) {
+        scoreEl.textContent = 'Upload resume below or run scan in Analysis view';
+        scoreEl.className = 'badge badge-primary';
+      }
+    }
+  },
+
+  async handleJdMatchSubmit() {
+    if (!Auth.isAuthenticated()) {
+      this.showToast('Please sign in to run JD Match analysis.', 'warning');
+      Router.navigate('login');
+      return;
+    }
+
+    const jdText = document.getElementById('jd-matcher-text-input')?.value?.trim();
+    const fileInput = document.getElementById('jd-matcher-file-input');
+    const file = fileInput?.files?.[0];
+
+    if (!jdText) {
+      this.showToast('Please paste a Job Description text.', 'warning');
+      return;
+    }
+
+    // Resolve active resume state if no new file is uploaded
+    const activeAnalysis = this.restoreAnalysisState();
+    const existingText = activeAnalysis?.resume_text || activeAnalysis?.raw_text || activeAnalysis?.extracted_text || '';
+
+    if (!file && !existingText) {
+      this.showToast('Please upload and analyze a resume first or select a file.', 'warning');
+      return;
+    }
+
+    const targetName = file ? file.name : (activeAnalysis?.filename || 'Active Resume');
+    this.showToast(`Analyzing Resume ↔ JD Match for ${targetName}...`, 'info');
+
+    try {
+      const token = Auth.getAccessToken();
+      const result = await API.analyzeResume(file || null, jdText, token, file ? null : existingText);
+
+      // Preserve filename if re-using existing analysis
+      if (!file && activeAnalysis?.filename) {
+        result.filename = activeAnalysis.filename;
+      }
+
+      this.setAnalysisState(result);
+      this.showToast('Resume ↔ JD Alignment Analysis Complete!', 'success');
+      
+      this.renderAnalysisResults(result);
+      Router.navigate('analyze');
+      await this.loadLiveDashboardData();
+    } catch (err) {
+      this.showToast(`JD Match Error: ${err.message}`, 'error');
+      console.error('[App] JD Match failed:', err);
+    }
+  },
+
+  // ── 8. Render Analysis Results ────────────────────────────────────────────
 
   renderAnalysisResults(data) {
     // Score meter
     const scoreMeter = document.getElementById('score-radial-meter');
     const scoreNum   = document.getElementById('analysis-score-num');
-    if (scoreNum) scoreNum.textContent = data.ats_score;
+    if (scoreNum) scoreNum.textContent = Math.round(data.ats_score || 0);
     if (scoreMeter) {
-      scoreMeter.style.strokeDashoffset = 440 - (440 * (data.ats_score / 100));
+      const circumference = 2 * Math.PI * 70; // r=70 → 439.8
+      scoreMeter.style.strokeDashoffset = circumference - (circumference * (data.ats_score / 100));
+    }
+
+    // Render JD Match Alignment Panel if JD comparison is present
+    const jdPanel = document.getElementById('jd-match-panel-wrap');
+    const jdAnalysis = data.jd_match_analysis || data.jd_comparison;
+    
+    if (jdPanel && (jdAnalysis || (data.match_percentage && data.match_percentage > 0) || (data.resume_jd_similarity && data.resume_jd_similarity > 0))) {
+      jdPanel.style.display = 'block';
+
+      const matchScore = Math.round(data.match_percentage || jdAnalysis?.match_percentage || 0);
+      const similarityPct = ((data.resume_jd_similarity || jdAnalysis?.semantic_similarity || 0) * 100).toFixed(1);
+      
+      const badgeEl = document.getElementById('jd-match-score-badge');
+      if (badgeEl) badgeEl.textContent = `${matchScore}% Match`;
+
+      const simVal = document.getElementById('jd-similarity-val');
+      const simBar = document.getElementById('jd-similarity-bar');
+      if (simVal) simVal.textContent = `${similarityPct}%`;
+      if (simBar) simBar.style.width = `${Math.min(100, Math.max(0, parseFloat(similarityPct)))}%`;
+
+      const matchingSkills = data.matching_skills || jdAnalysis?.matching_skills || [];
+      const missingSkills = data.missing_skills || jdAnalysis?.missing_skills || [];
+      const missingKeywords = data.missing_keywords || jdAnalysis?.missing_keywords || [];
+
+      const matchingContainer = document.getElementById('jd-matching-skills-container');
+      if (matchingContainer) {
+        matchingContainer.innerHTML = matchingSkills.length > 0
+          ? matchingSkills.map(s => `<span class="kw-pill matched"><i class="fa-solid fa-check"></i> ${s}</span>`).join('')
+          : '<small style="color: var(--text-muted);">None identified</small>';
+      }
+
+      const missingSkillsContainer = document.getElementById('jd-missing-skills-container');
+      if (missingSkillsContainer) {
+        missingSkillsContainer.innerHTML = missingSkills.length > 0
+          ? missingSkills.map(s => `<span class="kw-pill missing"><i class="fa-solid fa-xmark"></i> ${s}</span>`).join('')
+          : '<small style="color: var(--text-muted);">No missing skills!</small>';
+      }
+
+      const missingKwContainer = document.getElementById('jd-missing-keywords-container');
+      if (missingKwContainer) {
+        missingKwContainer.innerHTML = missingKeywords.length > 0
+          ? missingKeywords.slice(0, 15).map(kw => `<span class="kw-pill missing"><i class="fa-solid fa-tag"></i> ${kw}</span>`).join('')
+          : '<small style="color: var(--text-muted);">No missing keywords</small>';
+      }
+    } else if (jdPanel) {
+      jdPanel.style.display = 'none';
     }
 
     // Component cards
     const compGrid = document.getElementById('component-scores-grid');
     if (compGrid && data.component_scores) {
-      compGrid.innerHTML = Object.entries(data.component_scores).map(([key, val]) => `
-        <div class="component-card glass-panel">
-          <div class="component-card-header">
-            <span class="component-name"><i class="fa-solid fa-check-double" style="color: var(--accent-primary);"></i> ${key.replace('_', ' ').toUpperCase()}</span>
-            <span class="component-val">${val}</span>
+      compGrid.innerHTML = Object.entries(data.component_scores).map(([key, val]) => {
+        const maxVal = key === 'formatting' ? 20 : key === 'ats_compatibility' || key === 'skill_validation' ? 15 : 25;
+        return `
+          <div class="component-card glass-panel">
+            <div class="component-card-header">
+              <span class="component-name"><i class="fa-solid fa-check-double" style="color: var(--accent-primary);"></i> ${key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</span>
+              <span class="component-val">${val}/${maxVal}</span>
+            </div>
+            <div class="progress-bar-wrap">
+              <div class="progress-bar-fill" style="width: ${(val / maxVal) * 100}%;"></div>
+            </div>
           </div>
-          <div class="progress-bar-wrap">
-            <div class="progress-bar-fill" style="width: ${(val / 25) * 100}%;"></div>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
     }
 
     // Keywords
     const kwContainer = document.getElementById('matched-keywords-container');
     if (kwContainer) {
-      const matched = data.matched_keywords || [];
-      const missing = data.missing_keywords || [];
+      const matched = (data.matched_keywords || []).slice(0, 20);
+      const missing = (data.missing_keywords || []).slice(0, 15);
       kwContainer.innerHTML = [
         ...matched.map(kw => `<span class="kw-pill matched"><i class="fa-solid fa-check"></i> ${kw}</span>`),
         ...missing.map(kw => `<span class="kw-pill missing"><i class="fa-solid fa-xmark"></i> ${kw}</span>`),
@@ -395,28 +617,161 @@ const App = {
 
     // Recommendations
     const recsContainer = document.querySelector('.issues-accordion-list');
-    if (recsContainer && data.recommendations) {
+    if (recsContainer && data.recommendations?.length) {
       recsContainer.innerHTML = data.recommendations.map((rec, i) => `
         <div class="issue-item-card ${i === 0 ? 'active' : ''}">
           <div class="issue-item-header" onclick="this.parentElement.classList.toggle('active')">
-            <span class="issue-item-title">${rec.priority_icon || '🟠'} ${rec.title}</span>
+            <span class="issue-item-title">${rec.priority_icon || '🟠'} ${rec.title || rec.issue_title || 'Recommendation'}</span>
             <i class="fa-solid fa-chevron-down issue-chevron"></i>
           </div>
           <div class="issue-item-body">
-            <p>${rec.description}</p>
-            <div class="how-to-fix-box">
-              <strong>Action Items:</strong>
-              <ul style="padding-left: 1.2rem; margin-top: 0.35rem;">
-                ${(rec.action_items || []).map(item => `<li>${item}</li>`).join('')}
-              </ul>
-            </div>
+            <p>${rec.description || rec.explanation || ''}</p>
+            ${(rec.action_items || []).length ? `
+              <div class="how-to-fix-box">
+                <strong>Action Items:</strong>
+                <ul style="padding-left: 1.2rem; margin-top: 0.35rem;">
+                  ${rec.action_items.map(item => `<li>${item}</li>`).join('')}
+                </ul>
+              </div>` : ''}
           </div>
         </div>
       `).join('');
     }
+
+    // Render Parsed Resume & Document Preview Inspector
+    this.renderResumePreview(data);
   },
 
-  // ── 10. Render helpers ────────────────────────────────────────────────────
+  // ── 9. Resume Preview & Data Inspector ───────────────────────────────────
+
+  currentPreviewTab: 'summary',
+
+  switchPreviewTab(tab) {
+    this.currentPreviewTab = tab;
+    document.querySelectorAll('.doc-tab-pill').forEach(pill => {
+      pill.classList.toggle('active', pill.id === `tab-pill-${tab}`);
+    });
+    if (this.currentAnalysis) {
+      this.renderResumePreview(this.currentAnalysis, tab);
+    }
+  },
+
+  renderResumePreview(data, tab = null) {
+    const activeTab = tab || this.currentPreviewTab || 'summary';
+    const container = document.getElementById('resume-preview-body');
+    if (!container) return;
+
+    if (!data) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 2.5rem;">
+          <i class="fa-solid fa-file-pdf" style="font-size: 2.5rem; color: var(--accent-primary); margin-bottom: 0.75rem;"></i>
+          <h4 style="margin-bottom: 0.25rem;">No Active Resume Document</h4>
+          <p style="color: var(--text-secondary); font-size: 0.88rem;">Upload a resume above to analyze and inspect parsed contents.</p>
+        </div>`;
+      return;
+    }
+
+    const filename   = data.filename || data.resume_name || 'Uploaded Resume';
+    const uploadDate = this._formatDate(data.created_at || new Date().toISOString());
+    const rawText    = data.resume_text || data.raw_text || data.extracted_text || '';
+    const pagesCount = data.pages || Math.max(1, Math.ceil((rawText.length || 1500) / 3000));
+    const skills     = data.skills || [];
+    const jobTitle   = data.job_title || 'Target Role';
+
+    if (activeTab === 'summary') {
+      container.innerHTML = `
+        <div style="font-size: 0.92rem; line-height: 1.6;">
+          <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+            <div>
+              <strong style="font-size: 1.1rem; color: var(--text-primary);"><i class="fa-solid fa-file-invoice"></i> ${this._escapeHtml(filename)}</strong>
+              <span style="color: var(--text-muted); font-size: 0.8rem; display: block; margin-top: 0.15rem;">Uploaded: ${uploadDate} • ${pagesCount} Page(s)</span>
+            </div>
+            <span class="badge badge-success">ATS Score: ${Math.round(data.ats_score || 0)}/100</span>
+          </div>
+
+          <div style="margin-bottom: 0.75rem;">
+            <strong>TARGET ROLE:</strong> <span style="color: var(--accent-primary); font-weight: 600;">${this._escapeHtml(jobTitle)}</span>
+          </div>
+
+          <div style="margin-bottom: 1rem;">
+            <strong>PROFESSIONAL SUMMARY & EXCERPT:</strong>
+            <p style="color: var(--text-secondary); margin-top: 0.35rem; background: var(--bg-tertiary); padding: 0.85rem; border-radius: var(--border-radius-sm); border-left: 3px solid var(--accent-primary);">
+              ${this._escapeHtml(data.interpretation || rawText.slice(0, 500) || 'Extracted summary parsed successfully.')}
+            </p>
+          </div>
+
+          <div>
+            <strong>TOP DETECTED SKILLS (${skills.length}):</strong>
+            <div class="keywords-pills-wrap" style="margin-top: 0.4rem;">
+              ${skills.length > 0
+                ? skills.slice(0, 15).map(s => `<span class="kw-pill matched"><i class="fa-solid fa-check"></i> ${this._escapeHtml(s)}</span>`).join('')
+                : '<small style="color: var(--text-muted);">No skills extracted</small>'}
+            </div>
+          </div>
+        </div>`;
+    } else if (activeTab === 'skills') {
+      const matched = data.matching_skills || data.matched_keywords || [];
+      const missing = data.missing_skills || data.missing_keywords || [];
+      container.innerHTML = `
+        <div>
+          <h4 style="margin-bottom: 0.75rem;"><i class="fa-solid fa-layer-group"></i> Extracted Skills Breakdown</h4>
+          <div style="margin-bottom: 1.25rem;">
+            <strong style="color: var(--color-success);"><i class="fa-solid fa-circle-check"></i> Validated / Matched Skills (${matched.length}):</strong>
+            <div class="keywords-pills-wrap" style="margin-top: 0.5rem;">
+              ${matched.length > 0
+                ? matched.map(s => `<span class="kw-pill matched"><i class="fa-solid fa-check"></i> ${this._escapeHtml(s)}</span>`).join('')
+                : '<small style="color: var(--text-muted);">None identified</small>'}
+            </div>
+          </div>
+          <div>
+            <strong style="color: var(--color-danger);"><i class="fa-solid fa-circle-xmark"></i> Missing / Target Skills Gap (${missing.length}):</strong>
+            <div class="keywords-pills-wrap" style="margin-top: 0.5rem;">
+              ${missing.length > 0
+                ? missing.map(s => `<span class="kw-pill missing"><i class="fa-solid fa-xmark"></i> ${this._escapeHtml(s)}</span>`).join('')
+                : '<small style="color: var(--text-muted);">No missing skills!</small>'}
+            </div>
+          </div>
+        </div>`;
+    } else if (activeTab === 'text') {
+      container.innerHTML = `
+        <div>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+            <div>
+              <strong>Filename:</strong> ${this._escapeHtml(filename)} | <strong>Upload Date:</strong> ${uploadDate} | <strong>Pages:</strong> ${pagesCount}
+            </div>
+            <button class="btn btn-outline btn-sm" onclick="App.handleDownloadPDF()"><i class="fa-solid fa-download"></i> Download Report</button>
+          </div>
+          <textarea readonly class="chat-input-field" style="width: 100%; height: 260px; font-family: monospace; font-size: 0.85rem; line-height: 1.5; padding: 0.75rem; border-radius: var(--border-radius-sm); resize: vertical; color: var(--text-secondary); background: var(--bg-tertiary);">${this._escapeHtml(rawText || 'No raw text stored for this scan.')}</textarea>
+        </div>`;
+    } else if (activeTab === 'pdf') {
+      const pdfUrl = data.pdf_url || data.report_url || null;
+      if (pdfUrl) {
+        container.innerHTML = `
+          <iframe src="${pdfUrl}" width="100%" height="450px" style="border: none; border-radius: var(--border-radius-sm);" onerror="App.renderPdfFallback('${this._escapeHtml(filename)}', '${uploadDate}', ${pagesCount}, \`${this._escapeJs(rawText)}\`)"></iframe>`;
+      } else {
+        this.renderPdfFallback(filename, uploadDate, pagesCount, rawText);
+      }
+    }
+  },
+
+  renderPdfFallback(filename, uploadDate, pagesCount, rawText) {
+    const container = document.getElementById('resume-preview-body');
+    if (!container) return;
+    container.innerHTML = `
+      <div style="background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: var(--border-radius-sm); padding: 1.25rem;">
+        <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px dashed var(--border-color); padding-bottom: 0.75rem; margin-bottom: 1rem;">
+          <div>
+            <h4 style="margin: 0; font-size: 1rem; color: var(--text-primary);"><i class="fa-solid fa-file-pdf" style="color: var(--color-warning);"></i> ${this._escapeHtml(filename)}</h4>
+            <small style="color: var(--text-muted);">Uploaded: ${uploadDate} • Pages: ${pagesCount}</small>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="App.handleDownloadPDF()"><i class="fa-solid fa-download"></i> Download PDF Report</button>
+        </div>
+        <div style="margin-bottom: 0.5rem; font-size: 0.85rem; font-weight: 600; color: var(--text-secondary);">Extracted Text Preview:</div>
+        <div style="max-height: 220px; overflow-y: auto; background: var(--bg-primary); padding: 0.85rem; border-radius: var(--border-radius-sm); font-family: monospace; font-size: 0.82rem; color: var(--text-secondary); white-space: pre-wrap; word-break: break-word;">${this._escapeHtml(rawText || 'Text extraction complete.')}</div>
+      </div>`;
+  },
+
+  // ── 9. Render Helpers ────────────────────────────────────────────────────
 
   renderNotifications(list) {
     const container = document.getElementById('notification-items-container');
@@ -424,126 +779,282 @@ const App = {
     const items = Array.isArray(list) ? list : [];
     const unread = items.filter(n => !n.is_read).length;
 
-    // Update badge
     const badge = document.querySelector('.notification-badge-count');
-    if (badge) badge.textContent = unread || '';
+    if (badge) badge.textContent = unread > 0 ? String(unread) : '';
 
+    if (items.length === 0) {
+      container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.88rem; padding: 0.5rem 0;">No new notifications.</p>';
+      return;
+    }
     container.innerHTML = items.slice(0, 10).map(item => `
-      <div class="notification-item" onclick="API.markNotificationRead('${item.id}', Auth.getAccessToken())">
+      <div class="notification-item" style="cursor: pointer;"
+           onclick="API.markNotificationRead('${item.id}', Auth.getAccessToken()).catch(()=>{})">
         <i class="fa-solid ${item.icon || 'fa-bell'}" style="color: var(--accent-primary); margin-top: 0.2rem;"></i>
         <div>
           <strong style="font-size: 0.88rem; display: block;">${item.title}</strong>
-          <p style="font-size: 0.8rem; color: var(--text-secondary);">${item.description || item.desc || ''}</p>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 0.2rem 0 0;">${item.description || item.desc || ''}</p>
           <small style="color: var(--text-muted); font-size: 0.72rem;">${this._relativeTime(item.created_at || item.time)}</small>
         </div>
       </div>
     `).join('');
   },
 
-  renderActivityFeed(list) {
-    const container = document.getElementById('dashboard-activity-feed');
-    if (!container) return;
-    const items = Array.isArray(list) ? list : [];
-    if (items.length === 0) {
-      container.innerHTML = '<p style="color: var(--text-muted); font-size: 0.88rem; padding: 1rem 0;">No recent activity yet.</p>';
-      return;
-    }
-    container.innerHTML = items.slice(0, 6).map(item => `
-      <div class="activity-feed-item">
-        <div class="activity-icon-badge"><i class="fa-solid ${item.icon || 'fa-circle-check'}"></i></div>
-        <div>
-          <strong style="font-size: 0.9rem; display: block;">${item.action || item.title}</strong>
-          <p style="font-size: 0.82rem; color: var(--text-secondary);">${item.description || item.desc || ''}</p>
-          <small style="color: var(--text-muted); font-size: 0.75rem;">${this._relativeTime(item.created_at || item.time)}</small>
-        </div>
-      </div>
-    `).join('');
-  },
-
-  renderComparisonView(list) {
+  async renderCompareView() {
     const container = document.getElementById('comparison-matrix-body');
     if (!container) return;
-    container.innerHTML = (list || []).map(item => `
-      <tr>
-        <td><strong>${item.name || item.filename}</strong></td>
-        <td><span class="badge ${(item.atsScore || item.ats_score) >= 90 ? 'badge-success' : 'badge-primary'}">${item.atsScore || item.ats_score}/100</span></td>
-        <td>${item.formatting || item.component_scores?.formatting || 0}/20</td>
-        <td>${item.keywords || item.component_scores?.keywords || 0}/25</td>
-        <td>${item.skillsCount || item.skills_count || 0} Skills</td>
-        <td><span class="badge badge-info">${item.verdict}</span></td>
-      </tr>
-    `).join('');
-  },
 
-  renderJdMatchView(list) {
-    const container = document.getElementById('jd-match-cards-wrap');
-    if (!container) return;
-    if (!list || list.length === 0) {
+    let historyList = [];
+    try {
+      const token = Auth.getAccessToken();
+      if (token) {
+        historyList = await API.getHistory(50, token).catch(() => []);
+      }
+    } catch (e) {
+      console.warn('Could not fetch history for comparison:', e);
+    }
+
+    // Combine currentAnalysis, localStorage item, and history items into unique list
+    let allScans = [...historyList];
+    const activeData = this.currentAnalysis || this.restoreAnalysisState();
+    if (activeData) {
+      const exists = allScans.some(item => (item.id && item.id === activeData.id) || (item.filename && item.filename === activeData.filename));
+      if (!exists) {
+        allScans.unshift({
+          id: activeData.id || 'current',
+          filename: activeData.filename || 'Active Resume',
+          ats_score: activeData.ats_score || 0,
+          component_scores: activeData.component_scores || {},
+          skills: activeData.skills || [],
+          job_title: activeData.job_title || 'Parsed Role',
+          created_at: new Date().toISOString(),
+        });
+      }
+    }
+
+    // Filter unique items by filename or ID
+    const uniqueMap = new Map();
+    allScans.forEach(item => {
+      const key = item.filename || item.id;
+      if (key && !uniqueMap.has(key)) {
+        uniqueMap.set(key, item);
+      }
+    });
+    const analyses = Array.from(uniqueMap.values());
+
+    if (analyses.length === 0) {
       container.innerHTML = `
-        <div class="empty-state" style="grid-column: 1/-1;">
-          <i class="fa-solid fa-bullseye empty-state-icon"></i>
-          <h3 class="empty-state-title">No JD Matches Yet</h3>
-          <p class="empty-state-desc">Save a job description and match it against your resume.</p>
-          <button class="btn btn-primary btn-sm" onclick="App.openAddJDModal()"><i class="fa-solid fa-plus"></i> Add Job Description</button>
-        </div>`;
+        <tr>
+          <td colspan="6" style="text-align:center; padding: 2.5rem; color: var(--text-secondary);">
+            <i class="fa-solid fa-code-compare" style="font-size: 2rem; color: var(--accent-primary); margin-bottom: 0.5rem; display: block;"></i>
+            <strong>No Analyzed Resumes Found</strong>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Please upload and analyze a resume first.</p>
+            <button class="btn btn-primary btn-sm" style="margin-top: 0.75rem;" onclick="Router.navigate('analyze')">
+              <i class="fa-solid fa-plus"></i> Analyze Resume Now
+            </button>
+          </td>
+        </tr>`;
       return;
     }
-    container.innerHTML = list.map(item => `
-      <div class="glass-panel dashboard-card">
-        <div class="card-header">
-          <span class="card-title"><i class="fa-solid fa-building"></i> ${item.company || item.company_name}</span>
-          <span class="badge badge-success">${item.matchScore || item.match_percentage}% Match</span>
-        </div>
-        <h4 style="margin-bottom: 0.5rem;">${item.role || item.job_title}</h4>
-        <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 1rem;">Semantic Similarity: <strong>${((item.semanticSim || item.semantic_similarity || 0) * 100).toFixed(0)}%</strong></p>
-        <div style="margin-bottom: 1rem;">
-          <small style="color: var(--text-muted);">Missing Target Keywords:</small>
-          <div class="keywords-pills-wrap" style="margin-top: 0.35rem;">
-            ${(item.missingKeywords || item.missing_keywords || []).map(kw => `<span class="kw-pill missing">${kw}</span>`).join('')}
-          </div>
-        </div>
-        <button class="btn btn-outline btn-sm" onclick="App.handleTailorResume('${item.id || ''}')">Tailor Resume for Role</button>
-      </div>
-    `).join('');
+
+    // If 1 analysis exists: Show message informing user, and render single analysis row
+    if (analyses.length === 1) {
+      const single = analyses[0];
+      const fn = single.filename || single.name || 'Active Resume';
+      const score = single.ats_score || single.atsScore || 0;
+      const cs = single.component_scores || {};
+      const skillsCount = Array.isArray(single.skills) ? single.skills.length : (single.skills_count || 0);
+
+      container.innerHTML = `
+        <tr>
+          <td colspan="6" style="background: var(--bg-tertiary); padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-color);">
+            <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.5rem;">
+              <span style="font-size: 0.88rem; color: var(--text-primary);">
+                <i class="fa-solid fa-circle-info" style="color: var(--accent-primary); margin-right: 0.4rem;"></i>
+                You currently have 1 analyzed resume: <strong style="color: var(--accent-primary);">${fn}</strong> (${score}/100). Upload another resume to compare side-by-side.
+              </span>
+              <button class="btn btn-primary btn-sm" onclick="Router.navigate('analyze')">
+                <i class="fa-solid fa-plus"></i> Upload 2nd Resume
+              </button>
+            </div>
+          </td>
+        </tr>
+        <tr>
+          <td><strong>${fn}</strong> <span class="badge badge-primary" style="margin-left: 0.4rem;">Active</span></td>
+          <td><span class="badge ${score >= 80 ? 'badge-success' : 'badge-warning'}">${score}/100</span></td>
+          <td>${cs.formatting ?? 0}/20</td>
+          <td>${cs.keywords ?? 0}/25</td>
+          <td>${skillsCount} Skills Detected</td>
+          <td><span class="badge badge-info">${score >= 80 ? 'High Match' : 'Needs Optimization'}</span></td>
+        </tr>`;
+
+      ChartEngine.renderComparisonBarChart([
+        { label: fn, score: score, formatting: cs.formatting || 0, keywords: cs.keywords || 0 }
+      ]);
+      return;
+    }
+
+    // If 2+ analyses exist: Render side-by-side comparison matrix
+    container.innerHTML = analyses.map((item, idx) => {
+      const fn = item.filename || item.name || `Resume V${idx + 1}`;
+      const score = item.ats_score || item.atsScore || 0;
+      const cs = item.component_scores || {};
+      const skillsCount = Array.isArray(item.skills) ? item.skills.length : (item.skills_count || 0);
+      const verdict = score >= 85 ? 'Top Candidate' : score >= 70 ? 'Strong Match' : 'Needs Work';
+
+      return `
+        <tr>
+          <td><strong>${fn}</strong> ${idx === 0 ? '<span class="badge badge-primary" style="margin-left: 0.4rem;">Latest</span>' : ''}</td>
+          <td><span class="badge ${score >= 80 ? 'badge-success' : score >= 60 ? 'badge-warning' : 'badge-danger'}">${score}/100</span></td>
+          <td>${cs.formatting ?? 0}/20</td>
+          <td>${cs.keywords ?? 0}/25</td>
+          <td>${skillsCount} Skills</td>
+          <td><span class="badge ${score >= 80 ? 'badge-success' : 'badge-info'}">${verdict}</span></td>
+        </tr>`;
+    }).join('');
+
+    const chartData = analyses.map(item => ({
+      label: (item.filename || 'Resume').substring(0, 18),
+      score: item.ats_score || item.atsScore || 0,
+      formatting: item.component_scores?.formatting || 0,
+      keywords: item.component_scores?.keywords || 0,
+    }));
+    ChartEngine.renderComparisonBarChart(chartData);
   },
 
-  renderSkillGapView(list) {
+  async renderSkillGapView() {
     const container = document.getElementById('skill-roadmap-container');
     if (!container) return;
-    if (!list || list.length === 0) {
+
+    let activeData = this.currentAnalysis || this.restoreAnalysisState();
+
+    if (!activeData) {
+      try {
+        const token = Auth.getAccessToken();
+        if (token) {
+          const history = await API.getHistory(1, token);
+          if (history && history.length > 0) {
+            activeData = history[0].analysis_result || history[0];
+          }
+        }
+      } catch (e) {
+        console.warn('Could not fetch history for skill gap:', e);
+      }
+    }
+
+    if (!activeData) {
       container.innerHTML = `
-        <div class="empty-state">
-          <i class="fa-solid fa-road empty-state-icon"></i>
-          <h3 class="empty-state-title">No Roadmap Generated Yet</h3>
-          <p class="empty-state-desc">Run a resume analysis first, then generate your personalised skill roadmap.</p>
-          <button class="btn btn-primary btn-sm" onclick="App.handleGenerateRoadmap()"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate Roadmap</button>
+        <div style="text-align: center; padding: 3rem;">
+          <i class="fa-solid fa-road" style="font-size: 3rem; color: var(--accent-primary); margin-bottom: 1rem;"></i>
+          <h3>No Resume Analysis Found</h3>
+          <p style="color: var(--text-secondary);">Please upload and analyze a resume first to generate your personalised skill gap roadmap.</p>
+          <button class="btn btn-primary btn-sm" style="margin-top: 1rem;" onclick="Router.navigate('analyze')">
+            <i class="fa-solid fa-plus"></i> Analyze Resume Now
+          </button>
         </div>`;
       return;
     }
-    const statusColors = { 'Completed': 'success', 'In Progress': 'warning', 'Not Started': 'primary' };
-    container.innerHTML = list.map(item => `
-      <div class="roadmap-step-item">
-        <div class="roadmap-dot"></div>
-        <div class="roadmap-card glass-panel">
-          <div class="card-header" style="margin-bottom: 0.5rem;">
-            <span class="roadmap-title">${item.skill || item.skill_name}</span>
-            <span class="badge ${item.priority === 'Critical' ? 'badge-danger' : 'badge-warning'}">${item.priority} Priority</span>
-          </div>
-          <div class="roadmap-meta">
-            <span><i class="fa-solid fa-layer-group"></i> ${item.category}</span>
-            <span><i class="fa-solid fa-clock"></i> Est. ${item.estimatedHours || item.estimated_hours}</span>
-            <span><i class="fa-solid fa-circle-check"></i>
-              <select class="roadmap-status-select" onchange="App.handleRoadmapStatusChange('${item.id || ''}', this.value)" style="background: transparent; border: none; color: var(--text-secondary); cursor: pointer; font-size: 0.82rem;">
-                ${['Not Started', 'In Progress', 'Completed'].map(s => `<option value="${s}" ${(item.status || item.status) === s ? 'selected' : ''}>${s}</option>`).join('')}
-              </select>
-            </span>
-          </div>
-          <ul style="padding-left: 1.2rem; font-size: 0.9rem; color: var(--text-secondary);">
-            ${(item.roadmap || item.roadmap_steps || []).map(step => `<li style="margin-bottom: 0.35rem;">${step}</li>`).join('')}
-          </ul>
+
+    const resData = activeData.analysis_result || activeData;
+    const jdData = resData.jd_match_analysis || resData.jd_comparison || {};
+
+    const missingSkills = resData.missing_skills || jdData.missing_skills || jdData.skills_gap || [];
+    const unvalidated = resData.skill_validation_details?.unvalidated || [];
+    const recommendations = resData.recommendations || [];
+    const jobTitle = resData.job_title || 'Target Professional Role';
+
+    const roadmapItems = [];
+
+    missingSkills.forEach((skill, i) => {
+      roadmapItems.push({
+        id: `gap-skill-${i}`,
+        skill_name: skill,
+        category: 'Missing Target Skill',
+        priority: i < 3 ? 'Critical' : 'High',
+        estimated_hours: `${10 + (i * 5)} Hours`,
+        status: 'Not Started',
+        roadmap_steps: [
+          `Study core concepts and online documentation for ${skill}.`,
+          `Build a hands-on project demonstrating ${skill} integration.`,
+          `Add measurable project results using ${skill} to your resume.`,
+        ]
+      });
+    });
+
+    unvalidated.forEach((skill, i) => {
+      const sName = typeof skill === 'string' ? skill : skill.skill;
+      roadmapItems.push({
+        id: `unval-skill-${i}`,
+        skill_name: sName,
+        category: 'Unvalidated Experience Skill',
+        priority: 'Medium',
+        estimated_hours: '5 Hours',
+        status: 'In Progress',
+        roadmap_steps: [
+          `Add explicit project or work experience bullet points for ${sName}.`,
+          `Include quantifiable metrics (e.g. reduced latency by 30% using ${sName}).`,
+        ]
+      });
+    });
+
+    recommendations.forEach((rec, i) => {
+      if (rec.title && rec.action_items) {
+        roadmapItems.push({
+          id: `rec-item-${i}`,
+          skill_name: rec.title,
+          category: 'ATS Optimization Action',
+          priority: 'High',
+          estimated_hours: '2 Hours',
+          status: 'Not Started',
+          roadmap_steps: rec.action_items,
+        });
+      }
+    });
+
+    if (roadmapItems.length === 0) {
+      container.innerHTML = `
+        <div style="text-align: center; padding: 2.5rem; background: var(--bg-tertiary); border-radius: var(--border-radius-md);">
+          <i class="fa-solid fa-circle-check" style="font-size: 2.5rem; color: var(--accent-success); margin-bottom: 0.75rem; display: block;"></i>
+          <h4 style="margin-bottom: 0.3rem;">No Critical Skill Gaps Detected</h4>
+          <p style="color: var(--text-secondary); font-size: 0.9rem;">Your uploaded resume (${resData.filename || 'Active Resume'}) covers all primary technical requirements for ${jobTitle}!</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <div style="margin-bottom: 1.25rem; padding: 0.85rem 1.1rem; background: var(--bg-tertiary); border-left: 4px solid var(--accent-primary); border-radius: var(--border-radius-sm); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <div>
+          <i class="fa-solid fa-road" style="color: var(--accent-primary); margin-right: 0.5rem; font-size: 1.1rem;"></i>
+          <span style="font-size: 0.9rem;">Active Roadmap Target: <strong style="color: var(--text-primary);">${jobTitle}</strong> (${resData.filename || 'Uploaded Resume'})</span>
         </div>
+        <span class="badge badge-primary">${roadmapItems.length} Action Items Identified</span>
       </div>
-    `).join('');
+      ` + roadmapItems.map(item => `
+        <div class="roadmap-step-item">
+          <div class="roadmap-dot"></div>
+          <div class="roadmap-card glass-panel">
+            <div class="card-header" style="margin-bottom: 0.5rem;">
+              <span class="roadmap-title"><i class="fa-solid fa-bullseye" style="color: var(--accent-primary); margin-right: 0.4rem;"></i>${item.skill_name}</span>
+              <span class="badge ${item.priority === 'Critical' ? 'badge-danger' : item.priority === 'High' ? 'badge-warning' : 'badge-primary'}">${item.priority} Priority</span>
+            </div>
+            <div class="roadmap-meta" style="display: flex; gap: 1rem; flex-wrap: wrap; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+              <span><i class="fa-solid fa-layer-group"></i> ${item.category}</span>
+              <span><i class="fa-solid fa-clock"></i> Est. ${item.estimated_hours}</span>
+              <span>
+                <select class="roadmap-status-select"
+                  onchange="App.handleRoadmapStatusChange('${item.id}', this.value)"
+                  style="background: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary); border-radius: 4px; padding: 0.15rem 0.4rem; font-size: 0.82rem; font-family: inherit;">
+                  ${['Not Started', 'In Progress', 'Completed'].map(s =>
+                    `<option value="${s}" ${item.status === s ? 'selected' : ''}>${s}</option>`
+                  ).join('')}
+                </select>
+              </span>
+            </div>
+            <ul style="padding-left: 1.2rem; font-size: 0.9rem; color: var(--text-secondary);">
+              ${item.roadmap_steps.map(step => `<li style="margin-bottom: 0.35rem;">${step}</li>`).join('')}
+            </ul>
+          </div>
+        </div>
+      `).join('');
   },
 
   renderHistoryView(list) {
@@ -552,13 +1063,13 @@ const App = {
 
     if (!list || list.length === 0) {
       container.innerHTML = `
-        <div class="col-span-12">
-          <div class="empty-state">
-            <i class="fa-solid fa-folder-open empty-state-icon"></i>
-            <h3 class="empty-state-title">No Scan Reports Found</h3>
-            <p class="empty-state-desc">Run a new resume scan to see your analysis history here.</p>
-            <button class="btn btn-primary btn-sm" onclick="Router.navigate('analyze')"><i class="fa-solid fa-plus"></i> Run New Scan</button>
-          </div>
+        <div style="grid-column: 1/-1; text-align: center; padding: 3rem;">
+          <i class="fa-solid fa-folder-open" style="font-size: 3rem; color: var(--accent-primary); margin-bottom: 1rem;"></i>
+          <h3>No Scan Reports Found</h3>
+          <p style="color: var(--text-secondary);">Run a new resume scan to see your analysis history here.</p>
+          <button class="btn btn-primary btn-sm" style="margin-top: 1rem;" onclick="Router.navigate('analyze')">
+            <i class="fa-solid fa-plus"></i> Run New Scan
+          </button>
         </div>`;
       return;
     }
@@ -566,31 +1077,47 @@ const App = {
     container.innerHTML = list.map(item => `
       <div class="glass-panel dashboard-card">
         <div class="card-header">
-          <span class="card-title"><i class="fa-solid fa-file-pdf"></i> ${item.filename}</span>
-          <span class="badge badge-success">Score: ${item.atsScore || item.ats_score}/100</span>
+          <span class="card-title"><i class="fa-solid fa-file-pdf"></i> ${item.filename || item.resume_name || 'Resume'}</span>
+          <span class="badge badge-success">Score: ${item.atsScore || item.ats_score || 0}/100</span>
         </div>
-        <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Role Target: <strong>${item.jobTitle || item.job_title || 'Not specified'}</strong></p>
-        <small style="color: var(--text-muted); display: block; margin-bottom: 1rem;">${this._formatDate(item.date || item.created_at)}</small>
+        <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+          Role Target: <strong>${item.jobTitle || item.job_title || 'Not specified'}</strong>
+        </p>
+        <small style="color: var(--text-muted); display: block; margin-bottom: 1rem;">
+          ${this._formatDate(item.date || item.created_at)}
+        </small>
         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-          <button class="btn btn-primary btn-sm" onclick="App.handleViewAnalysis('${item.id}')"><i class="fa-solid fa-eye"></i> View Report</button>
-          <button class="btn btn-outline btn-sm" onclick="App.handleDownloadPDF('${item.id}')"><i class="fa-solid fa-download"></i> PDF</button>
-          <button class="btn btn-outline btn-sm" onclick="App.handleDeleteHistory('${item.id}')" style="color: var(--color-danger); border-color: rgba(239,68,68,0.3);"><i class="fa-solid fa-trash"></i></button>
+          <button class="btn btn-primary btn-sm" onclick="App.handleViewAnalysis('${item.id}')">
+            <i class="fa-solid fa-eye"></i> View Report
+          </button>
+          <button class="btn btn-outline btn-sm" onclick="App.handleDownloadPDF('${item.id}')">
+            <i class="fa-solid fa-download"></i> PDF
+          </button>
+          <button class="btn btn-outline btn-sm"
+                  onclick="App.handleDeleteHistory('${item.id}')"
+                  style="color: var(--color-danger); border-color: rgba(239,68,68,0.3);">
+            <i class="fa-solid fa-trash"></i>
+          </button>
         </div>
       </div>
     `).join('');
   },
 
-  // ── 11. Action handlers ───────────────────────────────────────────────────
+  // ── 10. Action Handlers ───────────────────────────────────────────────────
 
   async handleViewAnalysis(analysisId) {
     const token = Auth.getAccessToken();
+    if (!token) return;
     try {
-      this.showToast('Loading analysis...', 'info');
+      this.showToast('Loading analysis report...', 'info');
       const item = await API.getHistoryItem(analysisId, token);
-      const data  = item.analysis_result || item;
-      this.currentAnalysis = data;
+      const data = item.analysis_result || item;
+      this.setAnalysisState(data);
       Router.navigate('analyze');
-      setTimeout(() => this.renderAnalysisResults(data), 200);
+      setTimeout(() => {
+        this.renderAnalysisResults(data);
+        this.renderResumePreview(data);
+      }, 150);
     } catch (err) {
       this.showToast(`Could not load analysis: ${err.message}`, 'error');
     }
@@ -600,14 +1127,16 @@ const App = {
     this.showToast('Generating PDF Report...', 'info');
     try {
       const token = Auth.getAccessToken();
-      const blob  = await API.downloadPDF(analysisId, token);
+      // Pass analysisId (if present) or fall back to in-memory currentAnalysis
+      const blob  = await API.downloadPDF(analysisId, this.currentAnalysis, token);
       const url   = window.URL.createObjectURL(blob);
       const a     = document.createElement('a');
-      a.href     = url;
-      a.download = `talentmatch_report_${analysisId || 'latest'}.pdf`;
+      a.href      = url;
+      a.download  = `talentmatch_report_${analysisId || 'latest'}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
+      window.URL.revokeObjectURL(url);
       this.showToast('PDF Report downloaded!', 'success');
     } catch (err) {
       this.showToast(`PDF Download Error: ${err.message}`, 'error');
@@ -634,12 +1163,13 @@ const App = {
 
   async handleGenerateRoadmap() {
     const token      = Auth.getAccessToken();
+    if (!token) { this.showToast('Please sign in first.', 'warning'); return; }
     const analysisId = localStorage.getItem('talentmatch_last_analysis_id');
     if (!analysisId) {
       this.showToast('Please run a resume analysis first.', 'warning');
       return;
     }
-    this.showToast('Generating your personalised skill roadmap...', 'info');
+    this.showToast('Generating your personalised skill roadmap with Gemini...', 'info');
     try {
       const result = await API.generateSkillRoadmap(analysisId, token);
       this.showToast(`Roadmap generated with ${result.count} skill items!`, 'success');
@@ -662,7 +1192,7 @@ const App = {
 
   async handleTailorResume(jdId) {
     if (!jdId) {
-      this.showToast('Tailor a resume by saving a JD and running a resume analysis first.', 'info');
+      this.showToast('Save a job description and run an analysis first.', 'info');
       return;
     }
     const analysisId = localStorage.getItem('talentmatch_last_analysis_id');
@@ -670,42 +1200,41 @@ const App = {
       this.showToast('Please run a resume analysis first.', 'warning');
       return;
     }
-    this.showToast('Generating tailored resume suggestions...', 'info');
+    this.showToast('Generating tailored resume suggestions with Gemini...', 'info');
     try {
       const token  = Auth.getAccessToken();
       const result = await API.tailorResume(analysisId, jdId, token);
-      this.showTailoringModal(result);
+      this.showToast(`Tailoring complete for ${result.job_title} @ ${result.company_name}!`, 'success');
+      console.log('[App] Tailoring result:', result);
     } catch (err) {
       this.showToast(`Tailoring failed: ${err.message}`, 'error');
     }
   },
 
-  showTailoringModal(result) {
-    // Display tailoring results in a toast + future modal
-    this.showToast(`Tailoring ready for ${result.job_title} @ ${result.company_name}!`, 'success');
-    // TODO: render full tailoring modal with suggestions
-  },
-
   openAddJDModal() {
-    this.showToast('Add a new Job Description to start matching.', 'info');
-    // TODO: render JD input modal
+    this.showToast('JD Manager coming soon! Use the API directly for now.', 'info');
   },
 
-  // ── 12. AI Chat ───────────────────────────────────────────────────────────
+  // ── 11. AI Chat ───────────────────────────────────────────────────────────
 
   async handleChatSend() {
     const input      = document.getElementById('chat-input');
     const scrollArea = document.getElementById('chat-messages-scroll');
-    if (!input?.value.trim() || !scrollArea) return;
+    const userText   = input?.value?.trim();
+    if (!userText || !scrollArea) return;
 
-    const userText = input.value.trim();
+    if (!Auth.isAuthenticated()) {
+      this.showToast('Please sign in to use the AI Assistant.', 'warning');
+      return;
+    }
+
     input.value = '';
 
     // Append user bubble
     scrollArea.innerHTML += `
       <div class="chat-message-row user">
         <div class="chat-avatar"><i class="fa-solid fa-user"></i></div>
-        <div class="chat-bubble">${userText}</div>
+        <div class="chat-bubble">${this._escapeHtml(userText)}</div>
       </div>`;
     scrollArea.scrollTop = scrollArea.scrollHeight;
 
@@ -728,33 +1257,32 @@ const App = {
       const token      = Auth.getAccessToken();
       const analysisId = localStorage.getItem('talentmatch_last_analysis_id');
 
-      // Ensure we have a session
-      if (!this.currentSessionId) {
-        if (token) {
+      // Create session if we don't have one
+      if (!this.currentSessionId && token) {
+        try {
           const session = await API.createChatSession(
-            { title: 'Resume Chat', analysis_id: analysisId },
+            { title: 'Resume Chat', analysis_id: analysisId || null },
             token,
           );
           this.currentSessionId = session?.id || null;
+        } catch (sessErr) {
+          console.warn('[App] Could not create chat session:', sessErr.message);
         }
       }
 
       let aiReply;
       if (this.currentSessionId && token) {
-        const resp = await API.sendChatMessage(
-          this.currentSessionId, userText, analysisId, token,
-        );
+        const resp = await API.sendChatMessage(this.currentSessionId, userText, analysisId, token);
         aiReply = resp.content || resp.message || 'No response received.';
       } else {
-        // Offline fallback
-        aiReply = 'I\'m currently offline. Please ensure the backend is running and you\'re signed in for AI-powered responses.';
+        aiReply = 'I\'m currently offline. Please ensure the backend is running and you\'re signed in.';
       }
 
       document.getElementById(typingId)?.remove();
       scrollArea.innerHTML += `
         <div class="chat-message-row assistant">
           <div class="chat-avatar"><i class="fa-solid fa-robot"></i></div>
-          <div class="chat-bubble">${aiReply.replace(/\n/g, '<br>').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')}</div>
+          <div class="chat-bubble">${this._formatAIReply(aiReply)}</div>
         </div>`;
       scrollArea.scrollTop = scrollArea.scrollHeight;
     } catch (err) {
@@ -762,7 +1290,9 @@ const App = {
       scrollArea.innerHTML += `
         <div class="chat-message-row assistant">
           <div class="chat-avatar"><i class="fa-solid fa-robot"></i></div>
-          <div class="chat-bubble" style="color: var(--color-danger);">Sorry, I encountered an error: ${err.message}</div>
+          <div class="chat-bubble" style="color: var(--color-danger);">
+            Sorry, I encountered an error: ${this._escapeHtml(err.message)}
+          </div>
         </div>`;
       scrollArea.scrollTop = scrollArea.scrollHeight;
     }
@@ -776,7 +1306,7 @@ const App = {
     }
   },
 
-  // ── 13. Utility helpers ───────────────────────────────────────────────────
+  // ── 12. Utility helpers ───────────────────────────────────────────────────
 
   _relativeTime(dateStr) {
     if (!dateStr) return '';
@@ -788,7 +1318,7 @@ const App = {
       const hrs = Math.floor(mins / 60);
       if (hrs < 24)   return `${hrs}h ago`;
       return `${Math.floor(hrs / 24)}d ago`;
-    } catch { return dateStr; }
+    } catch { return dateStr || ''; }
   },
 
   _formatDate(dateStr) {
@@ -799,7 +1329,27 @@ const App = {
       });
     } catch { return dateStr; }
   },
+
+  _escapeHtml(text) {
+    return (text || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  },
+
+  _escapeJs(str) {
+    if (!str) return '';
+    return String(str)
+      .replace(/\\/g, '\\\\')
+      .replace(/`/g, '\\`')
+      .replace(/\${/g, '\\${');
+  },
+
+  _formatAIReply(text) {
+    // Convert markdown-lite: bold and newlines
+    return (text || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\n/g, '<br>');
+  },
 };
 
 // ── Initialize on DOM Ready ────────────────────────────────────────────────
-document.addEventListener('DOMContentLoaded', () => App.init());
+document.addEventListener('DOMContentLoaded', () => App.init().catch(console.error));

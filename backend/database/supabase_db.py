@@ -15,6 +15,7 @@ Covers all tables:
 
 import json
 import logging
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 import httpx
@@ -59,15 +60,33 @@ def _now() -> str:
 # ANALYSES
 # ══════════════════════════════════════════════════════════════════════════════
 
+# In-memory analysis cache for instant lookup & unconfigured fallback
+_MEMORY_ANALYSES: Dict[str, Dict[str, Any]] = {}
+_LAST_USER_ANALYSIS: Dict[str, str] = {}
+
+_ANALYSES_DB_COLUMNS = {
+    'id', 'user_id', 'filename', 'job_title', 'ats_score', 'keyword_match',
+    'component_scores', 'matched_keywords', 'missing_keywords', 'issues_summary',
+    'detailed_feedback', 'jd_match_analysis', 'skill_validation_details',
+    'recommendations', 'strengths', 'interpretation', 'created_at'
+}
+
+
 async def save_analysis(
     user_id: str,
-    filename: str,
-    analysis_result: Dict[str, Any],
+    analysis_result: Any,
+    filename: Any = 'resume',
 ) -> Dict[str, Any]:
-    """Save a full analysis result to public.analyses."""
-    if not _configured():
-        logger.warning('Supabase credentials not configured — skipping DB save.')
-        return {'status': 'skipped', 'reason': 'credentials_missing'}
+    """Save a full analysis result to public.analyses and in-memory cache."""
+    # Handle flexible positional argument order: (user_id, filename, analysis_result) or (user_id, analysis_result, filename)
+    if isinstance(analysis_result, str) and isinstance(filename, dict):
+        filename, analysis_result = analysis_result, filename
+
+    if not isinstance(analysis_result, dict):
+        analysis_result = {}
+
+    if not isinstance(filename, str) or not filename.strip():
+        filename = 'resume'
 
     serializable = json.loads(json.dumps(analysis_result, default=_json_default))
     jd_data = (
@@ -76,8 +95,10 @@ async def save_analysis(
         or {}
     )
     job_title = serializable.get('job_title', '') or jd_data.get('job_title', '') or ''
+    generated_id = str(uuid.uuid4())
 
     payload = {
+        'id':                       generated_id,
         'user_id':                  user_id,
         'filename':                 filename,
         'job_title':                job_title,
@@ -93,28 +114,82 @@ async def save_analysis(
         'recommendations':          serializable.get('recommendations', []),
         'strengths':                serializable.get('strengths', []),
         'interpretation':           serializable.get('interpretation', ''),
+        'resume_text':              serializable.get('resume_text', ''),
+        'skills':                   serializable.get('skills', []),
+        'job_description':          serializable.get('job_description', ''),
+        'jd_comparison':            serializable.get('jd_comparison', {}),
+        'matching_skills':          serializable.get('matching_skills', []),
+        'missing_skills':           serializable.get('missing_skills', []),
+        'match_percentage':         serializable.get('match_percentage', 0.0),
+        'resume_jd_similarity':    serializable.get('resume_jd_similarity', 0.0),
         'created_at':               _now(),
+        'analysis_result':          serializable,
     }
 
+    # Always cache in memory
+    _MEMORY_ANALYSES[generated_id] = payload
+    _LAST_USER_ANALYSIS[user_id]   = generated_id
+
+    if not _configured():
+        logger.info(f'Saved analysis in memory cache: id={generated_id}')
+        return {'status': 'saved', 'id': generated_id}
+
     try:
+        db_payload = {k: v for k, v in payload.items() if k in _ANALYSES_DB_COLUMNS}
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(_rest('analyses'), json=payload, headers=_get_headers())
+            resp = await client.post(_rest('analyses'), json=db_payload, headers=_get_headers())
             if resp.status_code in (200, 201):
                 rows = resp.json()
-                inserted_id = rows[0].get('id') if isinstance(rows, list) and rows else None
-                logger.info(f'Saved analysis id={inserted_id}')
+                inserted_id = rows[0].get('id') if isinstance(rows, list) and rows else generated_id
+                _MEMORY_ANALYSES[inserted_id] = payload
+                _LAST_USER_ANALYSIS[user_id]   = inserted_id
+                logger.info(f'Saved analysis to DB id={inserted_id}')
                 return {'status': 'saved', 'id': inserted_id}
-            logger.error(f'Insert failed ({resp.status_code}): {resp.text}')
-            return {'status': 'error', 'detail': resp.text}
+            logger.warning(f'Insert failed ({resp.status_code}): {resp.text} — using memory ID')
+            return {'status': 'saved', 'id': generated_id}
     except Exception as exc:
-        logger.error(f'save_analysis exception: {exc}')
-        return {'status': 'error', 'detail': str(exc)}
+        logger.warning(f'save_analysis DB exception: {exc} — using memory ID')
+        return {'status': 'saved', 'id': generated_id}
+
+
+async def update_analysis_context(analysis_id: str, user_id: str, updates: Dict[str, Any]) -> bool:
+    """Enrich an existing analysis record with JD match and comparison details."""
+    target_id = analysis_id
+    if not target_id or target_id == 'latest':
+        target_id = _LAST_USER_ANALYSIS.get(user_id)
+
+    if not target_id:
+        return False
+
+    if target_id in _MEMORY_ANALYSES:
+        item = _MEMORY_ANALYSES[target_id]
+        item.update(updates)
+        if 'analysis_result' in item and isinstance(item['analysis_result'], dict):
+            item['analysis_result'].update(updates)
+        else:
+            item['analysis_result'] = dict(item)
+
+    if _configured():
+        try:
+            url = f"{_rest('analyses')}?id=eq.{target_id}&user_id=eq.{user_id}"
+            db_updates = {k: v for k, v in updates.items() if k in _ANALYSES_DB_COLUMNS}
+            if db_updates:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    await client.patch(url, json=db_updates, headers=_get_headers())
+        except Exception as exc:
+            logger.warning(f'update_analysis_context DB warning: {exc}')
+
+    return True
 
 
 async def get_user_history(user_id: str) -> List[Dict[str, Any]]:
     """Fetch all analyses for a user, newest first."""
     if not _configured():
-        return []
+        user_mem = [
+            _format_history_item(v) for v in _MEMORY_ANALYSES.values()
+            if v.get('user_id') == user_id
+        ]
+        return sorted(user_mem, key=lambda x: x.get('created_at', ''), reverse=True)
     url = f"{_rest('analyses')}?user_id=eq.{user_id}&select=*&order=created_at.desc"
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -130,17 +205,30 @@ async def get_user_history(user_id: str) -> List[Dict[str, Any]]:
 
 
 async def get_analysis_by_id(analysis_id: str, user_id: str) -> Optional[Dict[str, Any]]:
-    """Fetch a single analysis by ID (with ownership check)."""
+    """Fetch a single analysis by ID or 'latest' (with ownership check)."""
+    target_id = analysis_id
+    if not target_id or target_id == 'latest':
+        target_id = _LAST_USER_ANALYSIS.get(user_id)
+
+    if target_id and target_id in _MEMORY_ANALYSES:
+        return _format_history_item(_MEMORY_ANALYSES[target_id], full=True)
+
     if not _configured():
         return None
-    url = f"{_rest('analyses')}?id=eq.{analysis_id}&user_id=eq.{user_id}&select=*"
+
+    if not target_id:
+        return None
+
+    url = f"{_rest('analyses')}?id=eq.{target_id}&user_id=eq.{user_id}&select=*"
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(url, headers=_get_headers())
             if resp.status_code != 200 or not resp.json():
                 return None
             doc = resp.json()[0]
-            return _format_history_item(doc, full=True)
+            formatted = _format_history_item(doc, full=True)
+            _MEMORY_ANALYSES[doc.get('id')] = doc
+            return formatted
     except Exception as exc:
         logger.error(f'get_analysis_by_id exception: {exc}')
         return None
@@ -184,6 +272,7 @@ async def update_analysis_label(analysis_id: str, user_id: str, job_title: str) 
 
 
 def _format_history_item(doc: Dict, full: bool = False) -> Dict[str, Any]:
+    res = doc.get('analysis_result') or {}
     base = {
         'id':                       str(doc.get('id')),
         'filename':                 doc.get('filename', 'resume'),
@@ -197,6 +286,14 @@ def _format_history_item(doc: Dict, full: bool = False) -> Dict[str, Any]:
         'created_at':               doc.get('created_at', ''),
         'component_scores':         doc.get('component_scores', {}),
         'recommendations':          doc.get('recommendations', []),
+        'resume_text':              doc.get('resume_text') or res.get('resume_text', ''),
+        'skills':                   doc.get('skills') or res.get('skills', []),
+        'job_description':          doc.get('job_description') or res.get('job_description', ''),
+        'jd_comparison':            doc.get('jd_comparison') or res.get('jd_comparison', {}),
+        'matching_skills':          doc.get('matching_skills') or res.get('matching_skills', []),
+        'missing_skills':           doc.get('missing_skills') or res.get('missing_skills', []),
+        'match_percentage':         float(doc.get('match_percentage') or res.get('match_percentage', 0.0)),
+        'resume_jd_similarity':    float(doc.get('resume_jd_similarity') or res.get('resume_jd_similarity', 0.0)),
         'analysis_result': {
             'ats_score':                doc.get('ats_score', 0.0),
             'job_title':                doc.get('job_title', ''),
@@ -209,6 +306,14 @@ def _format_history_item(doc: Dict, full: bool = False) -> Dict[str, Any]:
             'strengths':                doc.get('strengths', []),
             'interpretation':           doc.get('interpretation', ''),
             'skill_validation_details': doc.get('skill_validation_details', {}),
+            'resume_text':              doc.get('resume_text') or res.get('resume_text', ''),
+            'skills':                   doc.get('skills') or res.get('skills', []),
+            'job_description':          doc.get('job_description') or res.get('job_description', ''),
+            'jd_comparison':            doc.get('jd_comparison') or res.get('jd_comparison', {}),
+            'matching_skills':          doc.get('matching_skills') or res.get('matching_skills', []),
+            'missing_skills':           doc.get('missing_skills') or res.get('missing_skills', []),
+            'match_percentage':         float(doc.get('match_percentage') or res.get('match_percentage', 0.0)),
+            'resume_jd_similarity':    float(doc.get('resume_jd_similarity') or res.get('resume_jd_similarity', 0.0)),
         },
     }
     if full:

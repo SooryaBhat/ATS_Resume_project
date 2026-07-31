@@ -4,6 +4,12 @@
 
 const ChartEngine = {
   instances: {},
+  lastChartData: {
+    scoreTrend: { labels: ['No Data'], scores: [0] },
+    componentBreakdown: { labels: ['Formatting', 'Keywords', 'Content', 'Skills', 'ATS Compatibility'], percentages: [0, 0, 0, 0, 0] },
+    keywordDistribution: { labels: ['Matched', 'Missing'], counts: [0, 0] },
+    resumeComparison: []
+  },
 
   // Get CSS Variables for Theme Support
   getThemeColors() {
@@ -24,7 +30,9 @@ const ChartEngine = {
   initScoreTrendChart(canvasId, trendData) {
     if (!document.getElementById(canvasId)) return;
     if (this.instances[canvasId]) this.instances[canvasId].destroy();
+    if (trendData) this.lastChartData.scoreTrend = trendData;
 
+    const dataToRender = trendData || this.lastChartData.scoreTrend;
     const colors = this.getThemeColors();
     const ctx = document.getElementById(canvasId).getContext('2d');
 
@@ -35,10 +43,10 @@ const ChartEngine = {
     this.instances[canvasId] = new Chart(ctx, {
       type: 'line',
       data: {
-        labels: trendData.labels,
+        labels: dataToRender.labels || [],
         datasets: [{
           label: 'ATS Overall Score',
-          data: trendData.scores,
+          data: dataToRender.scores || [],
           borderColor: colors.primary,
           borderWidth: 3,
           backgroundColor: gradient,
@@ -72,7 +80,7 @@ const ChartEngine = {
             ticks: { color: colors.textSecondary, font: { family: 'Plus Jakarta Sans' } }
           },
           y: {
-            min: 50,
+            min: 0,
             max: 100,
             grid: { color: colors.gridColor },
             ticks: { color: colors.textSecondary, font: { family: 'Plus Jakarta Sans' } }
@@ -86,17 +94,19 @@ const ChartEngine = {
   initComponentRadarChart(canvasId, radarData) {
     if (!document.getElementById(canvasId)) return;
     if (this.instances[canvasId]) this.instances[canvasId].destroy();
+    if (radarData) this.lastChartData.componentBreakdown = radarData;
 
+    const dataToRender = radarData || this.lastChartData.componentBreakdown;
     const colors = this.getThemeColors();
     const ctx = document.getElementById(canvasId).getContext('2d');
 
     this.instances[canvasId] = new Chart(ctx, {
       type: 'radar',
       data: {
-        labels: radarData.labels,
+        labels: dataToRender.labels || ['Formatting', 'Keywords', 'Content', 'Skills', 'ATS Compatibility'],
         datasets: [{
           label: 'Component Rating (%)',
-          data: radarData.percentages,
+          data: dataToRender.percentages || [0, 0, 0, 0, 0],
           backgroundColor: 'rgba(168, 85, 247, 0.25)',
           borderColor: colors.secondary,
           borderWidth: 2,
@@ -130,17 +140,19 @@ const ChartEngine = {
   initKeywordDoughnutChart(canvasId, kwData) {
     if (!document.getElementById(canvasId)) return;
     if (this.instances[canvasId]) this.instances[canvasId].destroy();
+    if (kwData) this.lastChartData.keywordDistribution = kwData;
 
+    const dataToRender = kwData || this.lastChartData.keywordDistribution;
     const colors = this.getThemeColors();
     const ctx = document.getElementById(canvasId).getContext('2d');
 
     this.instances[canvasId] = new Chart(ctx, {
       type: 'doughnut',
       data: {
-        labels: kwData.labels,
+        labels: dataToRender.labels || ['Matched', 'Missing'],
         datasets: [{
-          data: kwData.counts,
-          backgroundColor: [colors.primary, colors.secondary, colors.tertiary, colors.success],
+          data: dataToRender.counts || [0, 0],
+          backgroundColor: [colors.success, colors.tertiary, colors.primary, colors.warning],
           borderWidth: 2,
           borderColor: colors.gridColor
         }]
@@ -163,18 +175,20 @@ const ChartEngine = {
   initComparisonBarChart(canvasId, comparisonData) {
     if (!document.getElementById(canvasId)) return;
     if (this.instances[canvasId]) this.instances[canvasId].destroy();
+    if (comparisonData) this.lastChartData.resumeComparison = comparisonData;
 
+    const dataToRender = comparisonData || this.lastChartData.resumeComparison || [];
     const colors = this.getThemeColors();
     const ctx = document.getElementById(canvasId).getContext('2d');
 
     this.instances[canvasId] = new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: comparisonData.map(item => item.name),
+        labels: dataToRender.map(item => item.name || item.filename || 'Resume'),
         datasets: [{
           label: 'ATS Score',
-          data: comparisonData.map(item => item.atsScore),
-          backgroundColor: [colors.primary, colors.secondary, colors.tertiary],
+          data: dataToRender.map(item => item.atsScore || item.ats_score || 0),
+          backgroundColor: [colors.primary, colors.secondary, colors.tertiary, colors.success, colors.warning],
           borderRadius: 8
         }]
       },
@@ -207,10 +221,18 @@ const ChartEngine = {
     });
     this.instances = {};
 
-    // Re-render if elements exist
-    this.initScoreTrendChart('scoreTrendChart', MockData.scoreTrend);
-    this.initComponentRadarChart('componentRadarChart', MockData.componentBreakdown);
-    this.initKeywordDoughnutChart('keywordDoughnutChart', MockData.keywordDistribution);
-    this.initComparisonBarChart('comparisonBarChart', MockData.resumeComparison);
+    // Re-render using last cached live backend data
+    if (this.lastChartData.scoreTrend) {
+      this.initScoreTrendChart('scoreTrendChart', this.lastChartData.scoreTrend);
+    }
+    if (this.lastChartData.componentBreakdown) {
+      this.initComponentRadarChart('componentRadarChart', this.lastChartData.componentBreakdown);
+    }
+    if (this.lastChartData.keywordDistribution) {
+      this.initKeywordDoughnutChart('keywordDoughnutChart', this.lastChartData.keywordDistribution);
+    }
+    if (this.lastChartData.resumeComparison) {
+      this.initComparisonBarChart('comparisonBarChart', this.lastChartData.resumeComparison);
+    }
   }
 };

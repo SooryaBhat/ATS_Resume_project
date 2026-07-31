@@ -64,32 +64,124 @@ Guidelines:
 
 
 def _build_resume_context_prompt(analysis: Dict[str, Any]) -> str:
-    """Build context injection from an analysis record to prime the assistant."""
-    ats_score  = analysis.get('ats_score', 0)
-    job_title  = analysis.get('job_title', 'Not specified')
-    strengths  = analysis.get('strengths', [])
-    missing_kw = analysis.get('missing_keywords', [])
-    components = analysis.get('component_scores', {})
-    issues     = analysis.get('issues_summary', [])
+    """
+    Build a comprehensive context injection prompt from an analysis record.
+    Injects:
+      - Candidate Resume Text
+      - ATS Results (overall score + 5 component score breakdown + grade interpretation)
+      - Extracted Skills & Validation Details
+      - Target Job Description & Role Title
+      - Similarity Results (SentenceTransformers BERT Cosine Similarity % & Match %)
+      - Matching & Missing Skills
+      - Matched & Missing Keywords
+      - Priority Recommendations & Issues Summary
+    """
+    res = analysis.get('analysis_result', analysis)
+    jd_analysis = res.get('jd_match_analysis') or res.get('jd_comparison') or analysis.get('jd_match_analysis') or {}
 
-    ctx = f"""
---- RESUME CONTEXT (user's latest analysis) ---
-ATS Score: {ats_score}/100
-Target Role: {job_title}
-Component Scores:
-  - Formatting: {components.get('formatting', 0)}/20
-  - Keywords: {components.get('keywords', 0)}/25
-  - Content Quality: {components.get('content', 0)}/25
-  - Skill Validation: {components.get('skill_validation', 0)}/15
-  - ATS Compatibility: {components.get('ats_compatibility', 0)}/15
+    ats_score  = res.get('ats_score', analysis.get('ats_score', 0))
+    job_title  = res.get('job_title') or analysis.get('job_title', 'Target Role')
+    
+    resume_text = res.get('resume_text') or analysis.get('resume_text') or res.get('professional_summary', '')
+    jd_text     = res.get('job_description') or jd_analysis.get('job_description') or ''
 
-Strengths: {', '.join(strengths[:4]) if strengths else 'None identified'}
-Missing Keywords: {', '.join(missing_kw[:10]) if missing_kw else 'None'}
-Top Issues: {'; '.join(issues[:3]) if issues else 'None'}
---- END RESUME CONTEXT ---
+    components  = res.get('component_scores') or analysis.get('component_scores') or {}
 
-Use the above context to give personalised, specific advice when helping the user."""
-    return ctx
+    skills          = res.get('skills', [])
+    matching_skills = res.get('matching_skills') or jd_analysis.get('matching_skills') or []
+    missing_skills  = res.get('missing_skills') or jd_analysis.get('missing_skills') or jd_analysis.get('skills_gap') or []
+    
+    matched_kw = res.get('matched_keywords') or jd_analysis.get('matched_keywords') or []
+    missing_kw = res.get('missing_keywords') or jd_analysis.get('missing_keywords') or []
+
+    similarity = res.get('resume_jd_similarity') or jd_analysis.get('semantic_similarity') or jd_analysis.get('bert_similarity') or 0.0
+    match_pct  = res.get('match_percentage') or jd_analysis.get('match_percentage') or 0.0
+
+    recommendations = res.get('recommendations', [])
+    strengths       = res.get('strengths', [])
+    issues          = res.get('issues_summary', [])
+    interpretation  = res.get('interpretation', '')
+
+    ctx_lines = [
+        "=== CANDIDATE RESUME & ATS ANALYSIS CONTEXT ===",
+        f"Target Role / Job Title: {job_title}",
+        f"Overall ATS Score: {ats_score}/100 ({interpretation})",
+        "",
+        "--- 5-COMPONENT ATS SCORE BREAKDOWN ---",
+        f"• Formatting Score: {components.get('formatting', 0)} / 20",
+        f"• Keywords & Skills Score: {components.get('keywords', 0)} / 25",
+        f"• Content Quality Score: {components.get('content', 0)} / 25",
+        f"• Skill Validation Score: {components.get('skill_validation', 0)} / 15",
+        f"• ATS Compatibility Score: {components.get('ats_compatibility', 0)} / 15",
+    ]
+
+    if resume_text:
+        ctx_lines.extend([
+            "",
+            "--- CANDIDATE RESUME TEXT ---",
+            resume_text[:3000]
+        ])
+
+    if skills:
+        ctx_lines.extend([
+            "",
+            "--- EXTRACTED SKILLS ---",
+            ", ".join(skills[:30])
+        ])
+
+    if jd_text or match_pct > 0 or similarity > 0 or matching_skills or missing_skills:
+        ctx_lines.extend([
+            "",
+            "--- JOB DESCRIPTION & RESUME-JD COMPARISON ---",
+            f"Overall Match Percentage: {match_pct}%",
+            f"SentenceTransformers BERT Cosine Similarity: {(similarity * 100):.1f}%",
+        ])
+        if jd_text:
+            ctx_lines.append(f"Job Description Requirements: {jd_text[:1500]}")
+        if matching_skills:
+            ctx_lines.append(f"Matching Skills: {', '.join(matching_skills)}")
+        if missing_skills:
+            ctx_lines.append(f"Missing Required Skills: {', '.join(missing_skills)}")
+        if matched_kw:
+            ctx_lines.append(f"Matched Keywords: {', '.join(matched_kw[:15])}")
+        if missing_kw:
+            ctx_lines.append(f"Missing Keywords: {', '.join(missing_kw[:15])}")
+
+    if strengths:
+        ctx_lines.extend([
+            "",
+            "--- CANDIDATE STRENGTHS ---",
+            "\n".join(f"• {s}" for s in strengths[:5])
+        ])
+
+    if issues:
+        ctx_lines.extend([
+            "",
+            "--- TOP ATS ISSUES IDENTIFIED ---",
+            "\n".join(f"• {issue}" for issue in issues[:5])
+        ])
+
+    if recommendations:
+        ctx_lines.extend([
+            "",
+            "--- PRIORITY RECOMMENDATIONS ---"
+        ])
+        for rec in recommendations[:5]:
+            title = rec.get('title') or rec.get('issue_title') or 'Recommendation'
+            desc  = rec.get('description') or rec.get('explanation') or ''
+            actions = rec.get('action_items', [])
+            ctx_lines.append(f"• {title}: {desc}")
+            if actions:
+                ctx_lines.append(f"  Actions: {'; '.join(actions[:3])}")
+
+    ctx_lines.append("=== END CANDIDATE CONTEXT ===")
+    ctx_lines.append(
+        "\nInstruction: You MUST use the candidate's exact resume text, skills, ATS score breakdown, "
+        "Job Description comparison, missing skills, and recommendations provided above to answer user questions. "
+        "Provide direct, highly tailored, specific answers referencing their actual resume data."
+    )
+
+    return "\n".join(ctx_lines)
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -133,11 +225,10 @@ async def send_message(
     # Fetch full conversation history for multi-turn context
     db_messages = await get_chat_messages(session_id, user_id)
 
-    # Resolve analysis_id (session-level wins, then per-message, then None)
-    ctx_analysis_id = session.get('analysis_id') or analysis_id
+    # Resolve analysis_id (session-level wins, then per-message, then latest fallback)
+    ctx_analysis_id = session.get('analysis_id') or analysis_id or 'latest'
 
     # Build Gemini history from DB messages (excluding the message we just saved)
-    # Gemini format: [{'role': 'user'|'model', 'parts': [text]}]
     gemini_history = []
     for msg in db_messages[:-1]:   # exclude last message (current user input)
         role = 'model' if msg.get('role') == 'assistant' else 'user'
@@ -179,12 +270,13 @@ async def _call_gemini(
     _ensure_configured()
     import google.generativeai as genai
 
-    # Build system instruction — base + optional resume context
+    # Build system instruction — base + full resume context
     system_instruction = _BASE_SYSTEM_PROMPT
-    if analysis_id:
-        analysis = await get_analysis_by_id(analysis_id, user_id)
-        if analysis:
-            system_instruction += '\n\n' + _build_resume_context_prompt(analysis)
+    target_aid = analysis_id or 'latest'
+    
+    analysis = await get_analysis_by_id(target_aid, user_id)
+    if analysis:
+        system_instruction += '\n\n' + _build_resume_context_prompt(analysis)
 
     model = genai.GenerativeModel(
         model_name=GEMINI_MODEL,

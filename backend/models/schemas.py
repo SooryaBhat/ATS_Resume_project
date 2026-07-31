@@ -32,11 +32,13 @@ class ComponentScores(BaseModel):
 
 
 class JDComparison(BaseModel):
-    match_percentage: float
-    semantic_similarity: float
-    matched_keywords: List[str]
-    missing_keywords: List[str]
-    skills_gap: List[str]
+    match_percentage: float = 0.0
+    semantic_similarity: float = 0.0
+    matching_skills: List[str] = []
+    missing_skills: List[str] = []
+    matched_keywords: List[str] = []
+    missing_keywords: List[str] = []
+    skills_gap: List[str] = []
 
 
 class SkillValidationDetails(BaseModel):
@@ -68,7 +70,12 @@ class AnalysisResponse(BaseModel):
 
     # ── Flat convenience fields (backward-compatible) ──────────────────────
     ats_score: float
+    job_title: str = ""
     keyword_match: float = 0.0
+    resume_jd_similarity: float = 0.0
+    match_percentage: float = 0.0
+    matching_skills: List[str] = []
+    missing_skills: List[str] = []
     missing_keywords: List[str] = []
     matched_keywords: List[str] = []
     suggestions: List[str] = []

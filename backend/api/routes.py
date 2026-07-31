@@ -120,32 +120,45 @@ async def health_check(request: Request):
 @router.post('/analyze-resume', response_model=AnalysisResponse)
 async def analyze_resume(
     request:         Request,
-    resume:          UploadFile = File(..., description='Resume file — PDF or DOCX, max 5 MB'),
-    job_description: str        = Form('', description='Job description text (optional)'),
-    user_id:         str        = Depends(get_current_user),
+    resume:          Optional[UploadFile] = File(None, description='Resume file — PDF or DOCX, max 5 MB'),
+    resume_text:     str                  = Form('', description='Existing parsed resume text (optional)'),
+    job_description: str                  = Form('', description='Job description text (optional)'),
+    user_id:         str                  = Depends(get_current_user),
 ):
     """Parse, score, and analyse a resume. Optionally benchmark against a JD."""
     nlp      = request.app.state.nlp
     embedder = request.app.state.embedder
 
-    # Phase 1: Parse
-    try:
-        file_bytes = await resume.read()
-        filename   = resume.filename or 'resume'
-        resume_text, _metadata = parse_resume_file(file_bytes, filename)
-        logger.info(f"Parsed '{filename}': {len(resume_text)} chars")
-    except Exception as exc:
-        logger.error(f'File parsing failed: {exc}')
-        raise HTTPException(status_code=422, detail=f'Could not parse resume: {exc}')
+    filename = 'resume'
+    target_resume_text = ''
+
+    if resume is not None and resume.filename:
+        try:
+            file_bytes = await resume.read()
+            filename   = resume.filename or 'resume'
+            target_resume_text, _metadata = parse_resume_file(file_bytes, filename)
+            logger.info(f"Parsed '{filename}': {len(target_resume_text)} chars")
+        except Exception as exc:
+            logger.error(f'File parsing failed: {exc}')
+            raise HTTPException(status_code=422, detail=f'Could not parse resume: {exc}')
+    elif resume_text and resume_text.strip():
+        target_resume_text = resume_text.strip()
+        filename = 'analyzed_resume.pdf'
+    else:
+        raise HTTPException(
+            status_code=422,
+            detail='Please select a resume file (PDF/DOCX) or run a resume analysis first.'
+        )
 
     # Phase 2: Full analysis
     try:
         result = analyze_full_resume(
-            resume_text=resume_text,
+            resume_text=target_resume_text,
             nlp=nlp,
             embedder=embedder,
             job_description=job_description,
         )
+        result['filename'] = filename
     except Exception as exc:
         logger.error(f'Analysis pipeline failed: {exc}')
         raise HTTPException(status_code=500, detail=f'Analysis failed: {exc}')
@@ -281,8 +294,7 @@ async def generate_pdf(
 ):
     """Generate a multi-page PDF report from analysis data and optionally persist it."""
     try:
-        html_docs = generate_html_reports(data.model_dump())
-        pdf_bytes = generate_combined_pdf(html_docs)
+        pdf_bytes = generate_combined_pdf(data.model_dump())
     except Exception as exc:
         logger.error(f'PDF generation failed: {exc}')
         raise HTTPException(status_code=500, detail=f'PDF generation failed: {exc}')
@@ -314,10 +326,8 @@ async def generate_history_pdf(
     if not item:
         raise HTTPException(status_code=404, detail='Analysis not found.')
 
-    analysis_data = item.get('analysis_result', {})
     try:
-        html_docs = generate_html_reports(analysis_data)
-        pdf_bytes = generate_combined_pdf(html_docs)
+        pdf_bytes = generate_combined_pdf(item)
     except Exception as exc:
         logger.error(f'History PDF generation failed: {exc}')
         raise HTTPException(status_code=500, detail=f'PDF generation failed: {exc}')
@@ -745,3 +755,37 @@ async def get_activity_route(
 ):
     """Fetch the user's recent activity feed."""
     return await fetch_activity_feed(user_id, limit)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PDF REPORT EXPORT
+# ══════════════════════════════════════════════════════════════════════════════
+
+@router.get('/analyses/{analysis_id}/pdf')
+@router.get('/reports/{analysis_id}/pdf')
+async def download_analysis_pdf(
+    analysis_id: str,
+    user_id:     str = Depends(get_current_user),
+):
+    """Generate and stream a professional PDF report for an analysis record."""
+    from backend.services.pdf_export import build_pdf_report
+
+    analysis = await get_analysis_by_id(analysis_id, user_id)
+    if not analysis:
+        raise HTTPException(status_code=404, detail='Analysis record not found.')
+
+    try:
+        pdf_bytes = build_pdf_report(analysis)
+        clean_fn = (analysis.get('filename') or 'resume').replace(' ', '_')
+        filename = f"talentmatch_report_{clean_fn}.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type='application/pdf',
+            headers={
+                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Access-Control-Expose-Headers': 'Content-Disposition',
+            }
+        )
+    except Exception as exc:
+        logger.error(f'PDF generation failed: {exc}')
+        raise HTTPException(status_code=500, detail=f'PDF report generation failed: {exc}')
