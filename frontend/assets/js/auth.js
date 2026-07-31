@@ -107,7 +107,7 @@ const Auth = {
     console.log('[Auth] signUp() — ready. Config exists:', !!this._config);
 
     if (!this._config) {
-      App.showToast('Backend is unreachable. Is the FastAPI server running on port 8000?', 'error');
+      App.showToast('Backend is unreachable. Please check backend server status.', 'error');
       return;
     }
 
@@ -170,7 +170,7 @@ const Auth = {
     await this.ready();
 
     if (!this._config) {
-      App.showToast('Backend is unreachable. Is the FastAPI server running on port 8000?', 'error');
+      App.showToast('Backend is unreachable. Please check backend server status.', 'error');
       return;
     }
 

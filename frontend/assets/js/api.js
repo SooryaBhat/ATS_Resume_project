@@ -3,9 +3,7 @@
    Complete client covering all 35+ backend endpoints.
    ========================================================================== */
 
-const API_BASE_URL = (typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'))
-  ? 'http://localhost:8000/api/v1'
-  : 'https://talentmatch-ai-grv6.onrender.com/api/v1';
+const API_BASE_URL = 'https://talentmatch-ai-grv6.onrender.com/api/v1';
 
 // Cache the /config response — fetched once, shared with Auth module
 let _cachedConfig = null;

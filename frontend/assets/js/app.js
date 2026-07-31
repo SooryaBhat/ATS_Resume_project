@@ -799,6 +799,36 @@ const App = {
     `).join('');
   },
 
+  renderActivityFeed(list) {
+    const container = document.getElementById('dashboard-activity-feed');
+    if (!container) return;
+    const items = Array.isArray(list) ? list : [];
+
+    if (items.length === 0) {
+      container.innerHTML = `
+        <div style="padding: 1.5rem; text-align: center; color: var(--text-muted); font-size: 0.88rem;">
+          <i class="fa-solid fa-clock-rotate-left" style="font-size: 1.5rem; margin-bottom: 0.5rem; display: block; color: var(--accent-primary);"></i>
+          No recent activity recorded yet. Run a scan or JD match to see activity here!
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = items.slice(0, 10).map(item => `
+      <div class="activity-feed-item" style="display: flex; gap: 0.85rem; align-items: flex-start; padding: 0.75rem 0; border-bottom: 1px dashed var(--border-color);">
+        <div style="width: 32px; height: 32px; border-radius: 50%; background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center; color: var(--accent-primary); flex-shrink: 0; font-size: 0.9rem;">
+          <i class="fa-solid ${item.icon || 'fa-bolt'}"></i>
+        </div>
+        <div style="flex: 1; font-size: 0.88rem;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="color: var(--text-primary);">${this._escapeHtml(item.action || item.title || 'Activity')}</strong>
+            <small style="color: var(--text-muted); font-size: 0.75rem;">${this._relativeTime(item.created_at || item.time)}</small>
+          </div>
+          <p style="color: var(--text-secondary); margin: 0.2rem 0 0; font-size: 0.82rem;">${this._escapeHtml(item.description || item.detail || '')}</p>
+        </div>
+      </div>
+    `).join('');
+  },
+
   async renderCompareView() {
     const container = document.getElementById('comparison-matrix-body');
     if (!container) return;
