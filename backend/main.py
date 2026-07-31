@@ -20,33 +20,14 @@ logger = logging.getLogger('ats_resume_scorer')
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info('Starting TalentMatch AI API...')
-
-    logger.info(f'Loading spaCy NLP model: {SPACY_MODEL_PRIMARY}')
-    import spacy
-    try:
-        app.state.nlp = spacy.load(SPACY_MODEL_PRIMARY)
-        logger.info(f'Loaded {SPACY_MODEL_PRIMARY}')
-    except OSError:
-        logger.warning(f'{SPACY_MODEL_PRIMARY} not found — trying fallback {SPACY_MODEL_SECONDARY}')
-        try:
-            app.state.nlp = spacy.load(SPACY_MODEL_SECONDARY)
-            logger.info(f'Loaded {SPACY_MODEL_SECONDARY} (fallback)')
-        except OSError:
-            logger.warning("Neither spacy model found — initializing spacy.blank('en')")
-            app.state.nlp = spacy.blank('en')
-            logger.info("Loaded spacy.blank('en') (emergency fallback)")
-
-
-    logger.info(f'Loading SentenceTransformer: {SENTENCE_TRANSFORMER_MODEL}')
-    from sentence_transformers import SentenceTransformer
-    app.state.embedder = SentenceTransformer(SENTENCE_TRANSFORMER_MODEL)
-    logger.info(f'Loaded {SENTENCE_TRANSFORMER_MODEL}')
-
-    logger.info('All models loaded. TalentMatch AI API is ready.')
+    app.state.nlp = None
+    app.state.embedder = None
+    logger.info('TalentMatch AI API is ready (ML models configured for lazy loading on demand).')
 
     yield
 
     logger.info('Shutting down TalentMatch AI API.')
+
 
 
 app = FastAPI(

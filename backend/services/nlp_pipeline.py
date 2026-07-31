@@ -11,16 +11,70 @@ Gemini is strictly EXCLUDED from calculating ATS scores or extracting score inpu
 
 import re
 import logging
-from typing import Dict, List, Set, Optional
+import threading
+from typing import Dict, List, Set, Optional, Any
 import numpy as np
-import spacy
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-from sentence_transformers import SentenceTransformer
 
+from backend.core.config import (
+    SPACY_MODEL_PRIMARY,
+    SPACY_MODEL_SECONDARY,
+    SENTENCE_TRANSFORMER_MODEL,
+)
 from backend.utils.matching import SKILL_ALIASES, normalize_skill, fuzzy_match_keywords
 
 logger = logging.getLogger('ats_resume_scorer')
+
+# Thread-safe lazy-loaded model singletons
+_nlp_instance = None
+_embedder_instance = None
+_model_lock = threading.Lock()
+
+
+def is_nlp_loaded() -> bool:
+    """Return True if the spaCy NLP model has been loaded into memory."""
+    return _nlp_instance is not None
+
+
+def is_embedder_loaded() -> bool:
+    """Return True if the SentenceTransformer embedder has been loaded into memory."""
+    return _embedder_instance is not None
+
+
+def get_nlp() -> Any:
+    """Lazily load and return the cached spaCy NLP model singleton."""
+    global _nlp_instance
+    if _nlp_instance is None:
+        with _model_lock:
+            if _nlp_instance is None:
+                import spacy
+                logger.info(f"Lazy-loading spaCy NLP model: {SPACY_MODEL_PRIMARY}")
+                try:
+                    _nlp_instance = spacy.load(SPACY_MODEL_PRIMARY)
+                    logger.info(f"Loaded {SPACY_MODEL_PRIMARY}")
+                except OSError:
+                    logger.warning(f"{SPACY_MODEL_PRIMARY} not found — trying fallback {SPACY_MODEL_SECONDARY}")
+                    try:
+                        _nlp_instance = spacy.load(SPACY_MODEL_SECONDARY)
+                        logger.info(f"Loaded {SPACY_MODEL_SECONDARY} (fallback)")
+                    except OSError:
+                        logger.warning("Neither spacy model found — initializing spacy.blank('en')")
+                        _nlp_instance = spacy.blank('en')
+                        logger.info("Loaded spacy.blank('en') (emergency fallback)")
+    return _nlp_instance
+
+
+def get_embedder() -> Any:
+    """Lazily load and return the cached SentenceTransformer embedder singleton."""
+    global _embedder_instance
+    if _embedder_instance is None:
+        with _model_lock:
+            if _embedder_instance is None:
+                from sentence_transformers import SentenceTransformer
+                logger.info(f"Lazy-loading SentenceTransformer: {SENTENCE_TRANSFORMER_MODEL}")
+                _embedder_instance = SentenceTransformer(SENTENCE_TRANSFORMER_MODEL)
+                logger.info(f"Loaded {SENTENCE_TRANSFORMER_MODEL}")
+    return _embedder_instance
+
 
 # Comprehensive taxonomy of technical, soft, and domain skills
 TECH_SKILLS_TAXONOMY: Set[str] = {
@@ -107,7 +161,7 @@ def clean_text(text: str) -> str:
     return cleaned.strip()
 
 
-def tokenize_text(text: str, nlp: Optional[spacy.Language] = None) -> List[str]:
+def tokenize_text(text: str, nlp: Optional[Any] = None) -> List[str]:
     """
     Tokenize cleaned text using spaCy (Notebook 01 NLP preprocessing):
     - Lemmatizes tokens
@@ -115,6 +169,9 @@ def tokenize_text(text: str, nlp: Optional[spacy.Language] = None) -> List[str]:
     """
     if not text or not text.strip():
         return []
+    
+    if nlp is None:
+        nlp = get_nlp()
     
     if nlp:
         doc = nlp(text.lower()[:50000])
@@ -134,13 +191,16 @@ def tokenize_text(text: str, nlp: Optional[spacy.Language] = None) -> List[str]:
     return words
 
 
-def extract_skills_nlp(text: str, nlp: Optional[spacy.Language] = None) -> List[str]:
+def extract_skills_nlp(text: str, nlp: Optional[Any] = None) -> List[str]:
     """
     Extract skills deterministically using spaCy and regex matching against taxonomy.
     Does NOT depend on Gemini or any external API.
     """
     if not text:
         return []
+
+    if nlp is None:
+        nlp = get_nlp()
 
     text_lower = text.lower()
     found_skills: Set[str] = set()
@@ -184,7 +244,7 @@ def extract_skills_nlp(text: str, nlp: Optional[spacy.Language] = None) -> List[
     return [s.capitalize() if len(s) > 3 else s.upper() for s in result]
 
 
-def extract_keywords_nlp(text: str, nlp: Optional[spacy.Language] = None, top_n: int = 25) -> List[str]:
+def extract_keywords_nlp(text: str, nlp: Optional[Any] = None, top_n: int = 25) -> List[str]:
     """
     Extract top N keywords using scikit-learn TF-IDF Vectorizer and spaCy noun chunks.
     Does NOT depend on Gemini.
@@ -192,11 +252,15 @@ def extract_keywords_nlp(text: str, nlp: Optional[spacy.Language] = None, top_n:
     if not text or not text.strip():
         return []
 
+    if nlp is None:
+        nlp = get_nlp()
+
     cleaned = clean_text(text)
     keywords: Set[str] = set()
 
     # 1. TF-IDF extraction via scikit-learn
     try:
+        from sklearn.feature_extraction.text import TfidfVectorizer
         vectorizer = TfidfVectorizer(
             stop_words='english',
             ngram_range=(1, 2),
@@ -232,12 +296,15 @@ def extract_keywords_nlp(text: str, nlp: Optional[spacy.Language] = None, top_n:
     return sorted(list(keywords))[:top_n]
 
 
-def extract_action_verbs_nlp(text: str, nlp: Optional[spacy.Language] = None) -> List[str]:
+def extract_action_verbs_nlp(text: str, nlp: Optional[Any] = None) -> List[str]:
     """
     Extract action verbs from bullet points using spaCy POS tagging and verb taxonomy.
     """
     if not text:
         return []
+
+    if nlp is None:
+        nlp = get_nlp()
 
     found_verbs: Set[str] = set()
     text_lower = text.lower()
@@ -268,12 +335,15 @@ def extract_action_verbs_nlp(text: str, nlp: Optional[spacy.Language] = None) ->
     return sorted(list(found_verbs))
 
 
-def extract_contact_info_nlp(text: str, nlp: Optional[spacy.Language] = None) -> Dict:
+def extract_contact_info_nlp(text: str, nlp: Optional[Any] = None) -> Dict:
     """Extract email, phone, LinkedIn, and GitHub from raw text using regex & spaCy."""
     email_match = re.search(EMAIL_PATTERN, text)
     phone_match = re.search(PHONE_PATTERN, text)
     linkedin_match = re.search(LINKEDIN_PATTERN, text, re.IGNORECASE)
     github_match = re.search(GITHUB_PATTERN, text, re.IGNORECASE)
+
+    if nlp is None:
+        nlp = get_nlp()
 
     name = ""
     if nlp:
@@ -341,7 +411,7 @@ def extract_sections_nlp(text: str) -> Dict[str, str]:
 
 
 def calculate_bert_similarity(
-    resume_text: str, jd_text: str, embedder: SentenceTransformer
+    resume_text: str, jd_text: str, embedder: Optional[Any] = None
 ) -> float:
     """
     Calculate BERT / SentenceTransformer cosine similarity between resume and JD.
@@ -349,6 +419,9 @@ def calculate_bert_similarity(
     """
     if not resume_text or not jd_text:
         return 0.0
+
+    if embedder is None:
+        embedder = get_embedder()
 
     try:
         emb_resume = embedder.encode(resume_text[:5000], convert_to_numpy=True)
@@ -367,17 +440,15 @@ def calculate_bert_similarity(
         return 0.0
 
 
-# Direct alias matching Notebook 03 production test function signature
-score_resume_against_jd = calculate_bert_similarity
-
-
-
-def nlp_parse_resume(raw_text: str, nlp: Optional[spacy.Language] = None) -> Dict:
+def nlp_parse_resume(raw_text: str, nlp: Optional[Any] = None) -> Dict:
     """
     Pure NLP Resume Parser.
     Extracts all score components (skills, keywords, verbs, contact info, sections)
     deterministically using spaCy, scikit-learn, and regex without LLM dependencies.
     """
+    if nlp is None:
+        nlp = get_nlp()
+
     cleaned = clean_text(raw_text)
     tokens = tokenize_text(cleaned, nlp)
     skills = extract_skills_nlp(cleaned, nlp)
@@ -408,11 +479,14 @@ def nlp_parse_resume(raw_text: str, nlp: Optional[spacy.Language] = None) -> Dic
     }
 
 
-def nlp_parse_job_description(raw_text: str, nlp: Optional[spacy.Language] = None) -> Dict:
+def nlp_parse_job_description(raw_text: str, nlp: Optional[Any] = None) -> Dict:
     """
     Pure NLP Job Description Parser.
     Extracts skills, keywords, and job title without calling Gemini.
     """
+    if nlp is None:
+        nlp = get_nlp()
+
     cleaned = clean_text(raw_text)
     skills = extract_skills_nlp(cleaned, nlp)
     keywords = extract_keywords_nlp(cleaned, nlp)
@@ -443,7 +517,7 @@ def validate_text_length(text: str, min_words: int = 20) -> bool:
     return word_count >= min_words
 
 
-def score_resume_against_jd(resume_text: str, jd_text: str, embedder: SentenceTransformer) -> float:
+def score_resume_against_jd(resume_text: str, jd_text: str, embedder: Optional[Any] = None) -> float:
     """
     Notebook 03 (Cell 14): score_resume_against_jd.
     Computes SentenceTransformer embedding cosine similarity between resume and job description.
@@ -451,16 +525,24 @@ def score_resume_against_jd(resume_text: str, jd_text: str, embedder: SentenceTr
     """
     if not resume_text or not jd_text:
         return 0.0
+
+    if embedder is None:
+        embedder = get_embedder()
+
     clean_r = clean_text(resume_text)
     clean_j = clean_text(jd_text)
     emb_resume = embedder.encode(clean_r, convert_to_numpy=True)
     emb_jd     = embedder.encode(clean_j, convert_to_numpy=True)
+
+    from sklearn.metrics.pairwise import cosine_similarity
     score      = cosine_similarity([emb_resume], [emb_jd])[0][0]
     return float(max(0.0, min(1.0, score)))
 
 
-def calculate_bert_similarity(resume_text: str, jd_text: str, embedder: SentenceTransformer) -> float:
+
+def calculate_bert_similarity(resume_text: str, jd_text: str, embedder: Optional[Any] = None) -> float:
     """
     Notebook 02 (Cell 6): BERT Cosine Similarity alias.
     """
     return score_resume_against_jd(resume_text, jd_text, embedder)
+

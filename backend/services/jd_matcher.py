@@ -1,20 +1,17 @@
-from typing import List, Dict
+from typing import List, Dict, Optional, Any
 import numpy as np
-import spacy
-from sentence_transformers import SentenceTransformer
 
-from typing import List, Dict
-import numpy as np
-import spacy
-from sentence_transformers import SentenceTransformer
-
+from backend.services.nlp_pipeline import get_nlp, get_embedder
 from backend.utils.matching import fuzzy_match_keywords, normalize_skill
 from rapidfuzz import fuzz
 
 
 def calculate_semantic_similarity(
-    resume_text: str, jd_text: str, embedder: SentenceTransformer
+    resume_text: str, jd_text: str, embedder: Optional[Any] = None
 ) -> float:
+    if embedder is None:
+        embedder = get_embedder()
+
     resume_emb = embedder.encode(resume_text[:5000], convert_to_tensor=False)
     jd_emb     = embedder.encode(jd_text[:5000], convert_to_tensor=False)
 
@@ -40,8 +37,11 @@ def identify_missing_keywords(
 
 
 def analyze_skills_gap(
-    resume_skills: List[str], jd_text: str, nlp: spacy.Language
+    resume_skills: List[str], jd_text: str, nlp: Optional[Any] = None
 ) -> List[str]:
+    if nlp is None:
+        nlp = get_nlp()
+
     doc       = nlp(jd_text[:5000])
     jd_skills = set()
 
@@ -126,9 +126,14 @@ def compare_resume_with_jd(
     resume_skills: List[str],
     jd_text: str,
     jd_keywords: List[str],
-    embedder: SentenceTransformer,
-    nlp: spacy.Language,
+    embedder: Optional[Any] = None,
+    nlp: Optional[Any] = None,
 ) -> Dict:
+    if embedder is None:
+        embedder = get_embedder()
+    if nlp is None:
+        nlp = get_nlp()
+
     semantic_similarity = calculate_semantic_similarity(resume_text, jd_text, embedder)
     matched_keywords    = identify_matched_keywords(resume_keywords, jd_keywords)
     missing_keywords    = identify_missing_keywords(resume_keywords, jd_keywords)
@@ -156,4 +161,5 @@ def compare_resume_with_jd(
         'missing_keywords':    missing_keywords,
         'skills_gap':          skills_gap,
     }
+
 

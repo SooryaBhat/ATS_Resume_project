@@ -1,10 +1,10 @@
 import logging
-import spacy
-from sentence_transformers import SentenceTransformer
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 
 from backend.models.schemas import IssueDetail
 from backend.services.nlp_pipeline import (
+    get_nlp,
+    get_embedder,
     nlp_parse_resume,
     nlp_parse_job_description,
     calculate_bert_similarity,
@@ -24,8 +24,8 @@ logger = logging.getLogger('ats_resume_scorer')
 
 def analyze_full_resume(
     resume_text: str,
-    nlp: spacy.Language,
-    embedder: SentenceTransformer,
+    nlp: Optional[Any] = None,
+    embedder: Optional[Any] = None,
     job_description: Optional[str] = None,
 ) -> Dict:
     """
@@ -40,6 +40,11 @@ def analyze_full_resume(
     6. Generate prioritized recommendations
     7. Optionally call Gemini ONLY for generating a narrative explanation of the NLP score
     """
+    if nlp is None:
+        nlp = get_nlp()
+    if embedder is None:
+        embedder = get_embedder()
+
 
     # ── Step 1: Preprocessing & Deterministic NLP Parse ───────────────────────
     cleaned_resume_text = clean_text(resume_text)

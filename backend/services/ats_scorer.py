@@ -1,12 +1,11 @@
 import re
-import spacy
 import numpy as np
-from sentence_transformers import SentenceTransformer
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Any
 
 from backend.utils.file_utils import log_warning
 from backend.core.config import SENTENCE_TRANSFORMER_MODEL
 from backend.utils.matching import fuzzy_match_keywords
+from backend.services.nlp_pipeline import get_nlp, get_embedder
 
 ZIP_CODE_PATTERN = r'\b\d{5}(?:-\d{4})?\b'
 
@@ -23,7 +22,10 @@ def _tier_score(n: float, tiers:list)-> float:
     return 0.0
 
 #Location/privacy detection
-def detect_location_info(text: str, nlp: spacy.Language) -> Dict:
+def detect_location_info(text: str, nlp: Optional[Any] = None) -> Dict:
+    if nlp is None:
+        nlp = get_nlp()
+
     locations = []
 
     #method01: spacy NER
@@ -72,10 +74,14 @@ def detect_location_info(text: str, nlp: spacy.Language) -> Dict:
         'penalty_applied':    penalty,
     }
 
-def _calculate_semantic_similarity(skill: str, text: str, embedder: SentenceTransformer) -> float:
+def _calculate_semantic_similarity(skill: str, text: str, embedder: Optional[Any] = None) -> float:
     #similarity = (A · B) / (|A| × |B|)
     if not skill or not text:
         return 0.0
+
+    if embedder is None:
+        embedder = get_embedder()
+
     try:
         skill_vec  = embedder.encode(skill, convert_to_tensor=False)
         text_vec   = embedder.encode(text,  convert_to_tensor=False)
@@ -89,7 +95,7 @@ def _calculate_semantic_similarity(skill: str, text: str, embedder: SentenceTran
         log_warning(f"Similarity error for '{skill}': {e}", context='ats_scorer')
         return 0.0
 
-def _skill_matches(skill: str, text: str, embedder: SentenceTransformer, threshold: float) -> Tuple[bool, float]:
+def _skill_matches(skill: str, text: str, embedder: Optional[Any] = None, threshold: float = 0.6) -> Tuple[bool, float]:
 
     #fast, o(n) directly check if skill is a substring of the text (case-insensitive)
     if skill.lower() in text.lower():
@@ -104,9 +110,12 @@ def validate_skills_with_projects(
     skills: List[str],
     projects: List[Dict],
     experience_entries: List[Dict],
-    embedder: SentenceTransformer,
+    embedder: Optional[Any] = None,
     threshold: float = 0.6,
 ) -> Dict:
+    if embedder is None:
+        embedder = get_embedder()
+
     
     if not skills:
         return {

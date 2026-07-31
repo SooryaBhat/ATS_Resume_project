@@ -49,6 +49,7 @@ from backend.models.schemas import (
     NotificationResponse, ActivityItem,
 )
 
+from backend.services.nlp_pipeline import is_nlp_loaded, is_embedder_loaded, get_nlp, get_embedder
 from backend.services.resume_parser import parse_resume_file
 from backend.services.resume_analyzer import analyze_full_resume
 from backend.database.supabase_db import (
@@ -103,11 +104,13 @@ async def get_frontend_config():
 
 @router.get('/health')
 async def health_check(request: Request):
-    """Confirm models are loaded and the API is ready."""
+    """Confirm models status and API readiness without forcing heavy model load."""
+    nlp_loaded = is_nlp_loaded() or getattr(request.app.state, 'nlp', None) is not None
+    embedder_loaded = is_embedder_loaded() or getattr(request.app.state, 'embedder', None) is not None
     return {
         'status':          'healthy',
-        'nlp_loaded':      request.app.state.nlp is not None,
-        'embedder_loaded': request.app.state.embedder is not None,
+        'nlp_loaded':      nlp_loaded,
+        'embedder_loaded': embedder_loaded,
         'version':         '2.0.0',
         'llm':             'gemini-2.5-flash',
     }
@@ -126,8 +129,9 @@ async def analyze_resume(
     user_id:         str                  = Depends(get_current_user),
 ):
     """Parse, score, and analyse a resume. Optionally benchmark against a JD."""
-    nlp      = request.app.state.nlp
-    embedder = request.app.state.embedder
+    nlp      = getattr(request.app.state, 'nlp', None) or get_nlp()
+    embedder = getattr(request.app.state, 'embedder', None) or get_embedder()
+
 
     filename = 'resume'
     target_resume_text = ''
@@ -567,13 +571,16 @@ async def match_jd(
 ):
     """Match a saved JD against a stored resume analysis."""
     try:
+        nlp      = getattr(request.app.state, 'nlp', None) or get_nlp()
+        embedder = getattr(request.app.state, 'embedder', None) or get_embedder()
         result = await match_analysis_with_jd(
             analysis_id = body.analysis_id,
             jd_id       = jd_id,
             user_id     = user_id,
-            nlp         = request.app.state.nlp,
-            embedder    = request.app.state.embedder,
+            nlp         = nlp,
+            embedder    = embedder,
         )
+
         # Fire-and-forget notification
         try:
             await notify_jd_matched(
