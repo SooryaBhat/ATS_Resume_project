@@ -19,7 +19,8 @@ APP_DESCRIPTION = 'AI-powered resume analysis and ATS scoring — TalentMatch AI
 # ── CORS Origins ──────────────────────────────────────────────────────────────
 # Includes localhost ports used by the HTML/CSS/JS frontend during development.
 ALLOWED_ORIGINS = [
-    'https://talentmatch-m79g658p0-sooryabhats-projects.vercel.app',  # Vercel Production Deployment
+    'https://talentmatchai-three.vercel.app',                        # Primary Vercel Production Deployment
+    'https://talentmatch-m79g658p0-sooryabhats-projects.vercel.app',  # Vercel Deployment
     'https://talentmatch-ai-grv6.onrender.com',                      # Render Production Backend
     'http://localhost:3000',        # common Node dev server
     'http://127.0.0.1:3000',

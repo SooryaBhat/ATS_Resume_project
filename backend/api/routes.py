@@ -540,6 +540,12 @@ async def list_jds(user_id: str = Depends(get_current_user)):
     return await list_job_descriptions(user_id)
 
 
+@router.get('/job-descriptions/matches')
+async def get_jd_matches_route(user_id: str = Depends(get_current_user)):
+    """List all past JD match results for the current user."""
+    return await list_jd_matches(user_id)
+
+
 @router.get('/job-descriptions/{jd_id}')
 async def get_jd(
     jd_id:   str,
@@ -596,10 +602,6 @@ async def match_jd(
         raise HTTPException(status_code=500, detail=f'JD matching failed: {exc}')
 
 
-@router.get('/job-descriptions/matches')
-async def get_jd_matches_route(user_id: str = Depends(get_current_user)):
-    """List all past JD match results for the current user."""
-    return await list_jd_matches(user_id)
 
 
 # ══════════════════════════════════════════════════════════════════════════════

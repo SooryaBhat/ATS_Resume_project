@@ -216,10 +216,11 @@ async def get_analysis_by_id(analysis_id: str, user_id: str) -> Optional[Dict[st
     if not _configured():
         return None
 
-    if not target_id:
-        return None
+    if not target_id or target_id == 'latest':
+        url = f"{_rest('analyses')}?user_id=eq.{user_id}&select=*&order=created_at.desc&limit=1"
+    else:
+        url = f"{_rest('analyses')}?id=eq.{target_id}&user_id=eq.{user_id}&select=*"
 
-    url = f"{_rest('analyses')}?id=eq.{target_id}&user_id=eq.{user_id}&select=*"
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.get(url, headers=_get_headers())
@@ -227,7 +228,9 @@ async def get_analysis_by_id(analysis_id: str, user_id: str) -> Optional[Dict[st
                 return None
             doc = resp.json()[0]
             formatted = _format_history_item(doc, full=True)
-            _MEMORY_ANALYSES[doc.get('id')] = doc
+            if doc.get('id'):
+                _MEMORY_ANALYSES[doc.get('id')] = doc
+                _LAST_USER_ANALYSIS[user_id] = doc.get('id')
             return formatted
     except Exception as exc:
         logger.error(f'get_analysis_by_id exception: {exc}')

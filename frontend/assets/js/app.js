@@ -829,6 +829,43 @@ const App = {
     `).join('');
   },
 
+  renderJdMatchView(list) {
+    const container = document.getElementById('jd-match-cards-wrap');
+    if (!container) return;
+    const items = Array.isArray(list) ? list : [];
+
+    if (items.length === 0) {
+      container.innerHTML = `
+        <div style="grid-column: 1/-1; text-align: center; padding: 3rem; background: var(--bg-tertiary); border-radius: var(--border-radius-md);">
+          <i class="fa-solid fa-bullseye" style="font-size: 2.5rem; color: var(--accent-primary); margin-bottom: 0.75rem; display: block;"></i>
+          <h3 style="margin-bottom: 0.3rem;">No Saved JD Matches</h3>
+          <p style="color: var(--text-secondary); font-size: 0.9rem;">Paste a Job Description requirements text above and click "Run Resume ↔ JD Match Analysis" to save match reports here.</p>
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = items.map(item => `
+      <div class="glass-panel dashboard-card">
+        <div class="card-header">
+          <span class="card-title"><i class="fa-solid fa-briefcase" style="color: var(--accent-primary);"></i> ${this._escapeHtml(item.job_title || item.title || 'Target Role')}</span>
+          <span class="badge ${item.match_percentage >= 70 ? 'badge-success' : 'badge-warning'}">${Math.round(item.match_percentage || 0)}% Match</span>
+        </div>
+        <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+          Company: <strong>${this._escapeHtml(item.company_name || 'Target Employer')}</strong>
+        </p>
+        <div style="margin-bottom: 0.75rem; font-size: 0.82rem; color: var(--text-muted);">
+          Semantic Similarity: <strong>${((item.semantic_similarity || 0) * 100).toFixed(1)}%</strong>
+        </div>
+        <div style="margin-bottom: 1rem;">
+          <small style="display: block; margin-bottom: 0.3rem; font-weight: 600; color: var(--text-secondary);">Matching Skills (${(item.matched_keywords || item.matching_skills || []).length}):</small>
+          <div class="keywords-pills-wrap">
+            ${(item.matched_keywords || item.matching_skills || []).slice(0, 8).map(s => `<span class="kw-pill matched"><i class="fa-solid fa-check"></i> ${this._escapeHtml(s)}</span>`).join('') || '<small style="color: var(--text-muted);">None</small>'}
+          </div>
+        </div>
+      </div>
+    `).join('');
+  },
+
   async renderCompareView() {
     const container = document.getElementById('comparison-matrix-body');
     if (!container) return;
