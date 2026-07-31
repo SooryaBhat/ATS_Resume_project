@@ -19,10 +19,12 @@ APP_DESCRIPTION = 'AI-powered resume analysis and ATS scoring — TalentMatch AI
 # ── CORS Origins ──────────────────────────────────────────────────────────────
 # Includes localhost ports used by the HTML/CSS/JS frontend during development.
 ALLOWED_ORIGINS = [
+    'https://talentmatch-m79g658p0-sooryabhats-projects.vercel.app',  # Vercel Production Deployment
+    'https://talentmatch-ai-grv6.onrender.com',                      # Render Production Backend
     'http://localhost:3000',        # common Node dev server
     'http://127.0.0.1:3000',
     'http://localhost:5500',        # VS Code Live Server (default)
-    'http://127.0.0.1:5500',       # VS Code Live Server (alternate)
+    'http://127.0.0.1:5500',        # VS Code Live Server (alternate)
     'http://localhost:5501',        # VS Code Live Server (second instance)
     'http://127.0.0.1:5501',
     'http://localhost:8080',        # Python http.server / other local servers
@@ -33,8 +35,7 @@ ALLOWED_ORIGINS = [
     'http://localhost:5173',        # Vite dev server
     'http://127.0.0.1:5173',
     'null',                         # file:// protocol (browser sends Origin: null)
-    # Legacy Streamlit deployment
-    'https://appapppy-ktwxupi73vqhjzweksze9d.streamlit.app',
+    '*',                            # Production fallback for Vercel preview URLs
 ]
 
 # ── File Upload Limits ────────────────────────────────────────────────────────

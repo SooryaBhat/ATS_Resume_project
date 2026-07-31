@@ -4,7 +4,7 @@ import requests
 import streamlit as st
 
 
-DEFAULT_BACKEND_URL = "http://localhost:8000"
+DEFAULT_BACKEND_URL = "https://talentmatch-ai-grv6.onrender.com"
 
 
 def _backend_url() -> str:

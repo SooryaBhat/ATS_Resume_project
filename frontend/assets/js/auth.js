@@ -47,8 +47,8 @@ const Auth = {
 
     if (!this._config) {
       console.error(
-        '[Auth] ✗ Could not reach http://localhost:8000/api/v1/config\n' +
-        '  → Ensure uvicorn is running: uvicorn backend.main:app --reload --port 8000'
+        '[Auth] ✗ Could not reach backend /api/v1/config endpoint\n' +
+        '  → Ensure backend server is running and accessible.'
       );
       return;
     }
@@ -340,7 +340,8 @@ const Auth = {
     try {
       const controller = new AbortController();
       const timeoutId  = setTimeout(() => controller.abort(), 5000);
-      const resp = await fetch('http://localhost:8000/api/v1/config', {
+      const baseUrl    = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : 'https://talentmatch-ai-grv6.onrender.com/api/v1';
+      const resp       = await fetch(`${baseUrl}/config`, {
         signal: controller.signal,
       });
       clearTimeout(timeoutId);
@@ -356,7 +357,7 @@ const Auth = {
       return cfg;
     } catch (err) {
       if (err.name === 'AbortError') {
-        console.error('[Auth] Config fetch timed out after 5s — is FastAPI running on :8000?');
+        console.error('[Auth] Config fetch timed out after 5s — check backend connectivity');
       } else {
         console.error('[Auth] Config fetch failed:', err.message);
       }
