@@ -1,102 +1,378 @@
-# ATS Resume Scorer
+# 🚀 TalentMatch AI
+### AI-Powered Resume Analysis, ATS Optimization & Career Intelligence Platform
 
-A web app that scores how well a resume matches a job description and returns actionable feedback. Built with FastAPI + Streamlit, using spaCy and Sentence Transformers for NLP and the Groq API for LLM-generated suggestions.
+TalentMatch AI is a full-stack AI-powered web application that helps job seekers optimize their resumes for Applicant Tracking Systems (ATS), compare resumes against job descriptions, identify skill gaps, generate personalized career roadmaps, tailor resumes for specific roles, and receive AI-powered career guidance.
 
-## What it does
+Built using **FastAPI**, **Supabase**, **Google Gemini AI**, **spaCy**, and **Sentence Transformers**, the platform combines Natural Language Processing (NLP), Semantic Search, and Generative AI to deliver intelligent resume insights.
 
-1. Upload a resume (PDF / DOC / DOCX) and paste a job description.
-2. The backend parses the resume, extracts skills and experience, and compares them to the JD using semantic similarity.
-3. You get an ATS score, a breakdown by category (formatting, keywords, content, skill validation, ATS compatibility), and LLM-written suggestions for what to improve.
-4. Past analyses are saved to your account so you can revisit them.
+---
+# 🚀 Live Links
 
-## Tech stack
+| Service | Link |
+|---------|------|
+| 🌐 Web App | https://talentmatchai-three.vercel.app |
+| ⚙️ Backend API | https://talentmatch-ai-grv6.onrender.com |
+| 📖 API Docs | https://talentmatch-ai-grv6.onrender.com/docs |
 
-- **Frontend:** Streamlit
-- **Backend:** FastAPI (Python)
-- **NLP:** spaCy (`en_core_web_md`), Sentence Transformers (`all-MiniLM-L6-v2`)
-- **LLM:** Groq API (Llama 3)
-- **Auth + Database:** Supabase (email/password and Google OAuth)
-- **PDF report export:** WeasyPrint + Jinja2
+## 🌟 Features
 
-## Project structure
+### 👤 Authentication
+- Secure User Registration & Login
+- JWT Authentication
+- Password Reset
+- Profile Management
+- Protected Routes
+
+### 📄 Resume Analysis
+- Upload Resume (PDF, DOC, DOCX)
+- Resume Parsing
+- ATS Compatibility Analysis
+- Resume Quality Evaluation
+- Section Completeness Check
+- Keyword Optimization
+- AI-Based Suggestions
+
+### 🎯 ATS Score Engine
+- Overall ATS Score
+- Detailed Score Breakdown
+- Formatting Analysis
+- Keyword Analysis
+- Content Evaluation
+- ATS Compatibility Score
+- Improvement Recommendations
+
+### 💼 Job Description Matching
+- Paste or Upload Job Description
+- Required Skill Extraction
+- Resume vs JD Matching
+- Match Percentage
+- Missing Skills Detection
+- Semantic Similarity Analysis
+
+### 📚 Skill Gap Analysis
+- Current Skill Assessment
+- Missing Skills Identification
+- Personalized Learning Roadmap
+- Recommended Projects
+- Estimated Learning Timeline
+
+### 📝 Resume Tailoring
+- AI Resume Optimization
+- Job-Specific Resume Suggestions
+- ATS Keyword Enhancement
+- Improved Resume Summary
+- Better Experience Descriptions
+
+### 🤖 AI Career Assistant
+- Resume Guidance
+- Career Advice
+- Interview Preparation
+- Learning Recommendations
+- Resume Improvement Suggestions
+
+### 📊 Dashboard
+- Resume Analysis History
+- ATS Score Trends
+- Job Match History
+- Skill Progress
+- Notifications
+- Activity Timeline
+
+### 📄 PDF Report Generation
+Generate professional reports containing:
+- ATS Score
+- Resume Summary
+- Skill Analysis
+- Job Match Report
+- AI Suggestions
+- Career Roadmap
+
+---
+
+# 🧠 AI Pipeline
 
 ```
-ATS_SCORER/
-├── backend/              FastAPI app, NLP services, API routes
-├── frontend/             Streamlit app, views, components
-├── jupyter notebooks/    Research and dataset prep (not used at runtime)
-├── ml model/             Exported ML artifacts
-├── requirements.txt      Combined backend + frontend dependencies
-└── .env.example          Template for environment variables
+Resume Upload
+        │
+        ▼
+Document Parsing
+        │
+        ▼
+Text Cleaning & Preprocessing
+        │
+        ▼
+spaCy NLP Processing
+        │
+        ▼
+Sentence Transformer Embeddings
+        │
+        ▼
+ATS Scoring Engine
+        │
+        ▼
+Gemini AI Analysis
+        │
+        ▼
+Recommendations & Reports
+        │
+        ▼
+Dashboard & PDF Export
 ```
 
-## Setup
+---
 
-### 1. Clone and create a virtual environment
+# 🏗️ System Architecture
+
+```
+                   User
+                     │
+                     ▼
+      HTML • CSS • JavaScript Frontend
+                     │
+                     ▼
+             FastAPI REST API
+                     │
+     ┌───────────────┼────────────────┐
+     │               │                │
+     ▼               ▼                ▼
+ Supabase      Gemini AI        NLP Engine
+(PostgreSQL)                  spaCy + Sentence
+                                 Transformers
+     │               │                │
+     └───────────────┼────────────────┘
+                     ▼
+             ATS Scoring Engine
+                     ▼
+       Dashboard • Reports • History
+```
+
+---
+
+# 🛠 Tech Stack
+
+## Frontend
+- HTML5
+- CSS3
+- JavaScript (ES6)
+- Chart.js
+- Fetch API
+
+## Backend
+- FastAPI
+- Python
+- Uvicorn
+- Pydantic
+- JWT Authentication
+
+## Artificial Intelligence
+- Google Gemini 2.5 Flash
+- spaCy
+- Sentence Transformers
+- NLP
+- Semantic Search
+
+## Database & Authentication
+- Supabase PostgreSQL
+- Supabase Auth
+- Supabase Storage
+
+## File Processing
+- PyPDF2
+- python-docx
+- ReportLab
+
+## Cloud Deployment
+- Vercel
+- Render
+- Supabase
+
+## Development Tools
+- Git
+- GitHub
+- VS Code
+- Postman
+- Jupyter Notebook
+
+---
+
+# 📂 Project Structure
+
+```
+TalentMatch-AI/
+│
+├── backend/
+│   ├── api/
+│   ├── services/
+│   ├── models/
+│   ├── core/
+│   ├── utils/
+│   └── main.py
+│
+├── frontend/
+│   ├── css/
+│   ├── js/
+│   ├── assets/
+│   └── index.html
+│
+├── notebooks/
+│
+├── uploads/
+│
+├── reports/
+│
+├── requirements.txt
+│
+└── README.md
+```
+
+---
+
+# ⚙️ Installation
+
+## Clone Repository
 
 ```bash
-git clone <repo-url>
-cd ATS_SCORER
+git clone https://github.com/yourusername/TalentMatch-AI.git
+
+cd TalentMatch-AI
+```
+
+## Backend Setup
+
+```bash
 python -m venv venv
-source venv/bin/activate         # Windows: venv\Scripts\activate
-```
 
-### 2. Install dependencies
+source venv/bin/activate
 
-```bash
+# Windows
+venv\Scripts\activate
+
 pip install -r requirements.txt
-python -m spacy download en_core_web_md
 ```
 
-WeasyPrint needs system libraries on Linux:
+Create a `.env` file
+
+```env
+SUPABASE_URL=YOUR_SUPABASE_URL
+SUPABASE_KEY=YOUR_SUPABASE_SERVICE_KEY
+SUPABASE_ANON_KEY=YOUR_SUPABASE_ANON_KEY
+SUPABASE_JWT_SECRET=YOUR_JWT_SECRET
+
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+```
+
+Start Backend
 
 ```bash
-# Fedora
-sudo dnf install -y cairo pango gdk-pixbuf2 libffi
-
-# Debian / Ubuntu
-sudo apt install -y libcairo2 libpango-1.0-0 libpangoft2-1.0-0 libffi-dev
+uvicorn backend.main:app --reload
 ```
 
-### 3. Configure environment variables
+---
 
-Copy the template and fill in your keys:
+## Frontend
+
+Simply open
+
+```
+index.html
+```
+
+or use
 
 ```bash
-cp .env.example .env
+python -m http.server
 ```
 
-You need:
+---
 
-- A **Supabase** project — grab `SUPABASE_URL`, `SUPABASE_KEY` (service role), and `SUPABASE_ANON_KEY` from Project Settings → API.
-- A **Groq** API key from [console.groq.com](https://console.groq.com).
-- (Optional) Google OAuth set up in the Supabase dashboard if you want Google sign-in.
+# 📡 API Modules
 
-The Streamlit frontend also reads Supabase config from `frontend/.streamlit/secrets.toml`. Copy `secrets.toml.example` to `secrets.toml` and fill it in.
+- Authentication
+- Resume Analysis
+- ATS Scoring
+- Job Description Matching
+- Resume Comparison
+- Skill Gap Analysis
+- Resume Tailoring
+- Dashboard
+- History
+- Reports
+- Notifications
+- AI Chat
 
-### 4. Run the backend
+---
 
-From the project root:
+# 🔒 Security
 
-```bash
-uvicorn backend.main:app --reload --host 0.0.0.0 --port 8000
-```
+- JWT Authentication
+- Protected Routes
+- Secure API Access
+- Environment Variables
+- Input Validation
+- File Validation
+- Password Hashing
+- CORS Protection
 
-The API is now at `http://localhost:8000`.
+---
 
-### 5. Run the frontend
+# 🚀 Deployment
 
-In a new terminal (with the venv activated):
+| Service | Platform |
+|----------|----------|
+| Frontend | Vercel |
+| Backend | Render |
+| Database | Supabase PostgreSQL |
+| Authentication | Supabase Auth |
+| Storage | Supabase Storage |
 
-```bash
-streamlit run frontend/streamlit_app.py
-```
+---
 
-The app opens at `http://localhost:8501`.
+# 📈 Future Improvements
 
-## Notes for students
+- Multi-language Resume Support
+- Recruiter Dashboard
+- Company Job Portal Integration
+- Resume Version Control
+- AI Interview Simulator
+- LinkedIn Profile Analysis
+- GitHub Portfolio Analysis
+- Real-Time Job Recommendations
 
-- **Never commit `.env` or `secrets.toml`** — they hold API keys. Both are in `.gitignore`; check before you push.
-- The first run downloads the Sentence Transformer model (~80 MB). It's cached afterwards.
-- If you don't have a Groq key yet, the scoring still works — only the LLM suggestions section will be empty.
-- `jupyter notebooks/` and `ml model/` are for experimentation and aren't required to run the app.
+---
+
+# 🤝 Contributing
+
+Contributions, feature requests, and suggestions are welcome!
+
+1. Fork the repository
+2. Create a new branch
+3. Commit your changes
+4. Push your branch
+5. Open a Pull Request
+
+---
+
+# 📜 License
+
+This project is licensed under the MIT License.
+
+---
+
+# 👨‍💻 Developer
+
+**Soorya Vighneshwar Bhat**
+
+AI & Data Science Engineering Student
+
+Interested in:
+- Artificial Intelligence
+- Machine Learning
+- NLP
+- Data Science
+- Generative AI
+- Computer Vision
+- Full-Stack AI Applications
+
+---
+
+⭐ If you found this project useful, consider giving it a **Star** on GitHub!
