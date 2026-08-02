@@ -980,9 +980,15 @@ const App = {
           <td><span class="badge badge-info">${score >= 80 ? 'High Match' : 'Needs Optimization'}</span></td>
         </tr>`;
 
-      ChartEngine.renderComparisonBarChart([
-        { label: fn, score: score, formatting: cs.formatting || 0, keywords: cs.keywords || 0 }
-      ]);
+      try {
+        if (typeof ChartEngine !== 'undefined' && ChartEngine.initComparisonBarChart) {
+          ChartEngine.initComparisonBarChart('comparisonBarChart', [
+            { label: fn, score: score, formatting: cs.formatting || 0, keywords: cs.keywords || 0 }
+          ]);
+        }
+      } catch (err) {
+        console.warn('[Compare] Could not render comparison chart:', err);
+      }
       return;
     }
 
@@ -1011,7 +1017,14 @@ const App = {
       formatting: item.component_scores?.formatting || 0,
       keywords: item.component_scores?.keywords || 0,
     }));
-    ChartEngine.renderComparisonBarChart(chartData);
+
+    try {
+      if (typeof ChartEngine !== 'undefined' && ChartEngine.initComparisonBarChart) {
+        ChartEngine.initComparisonBarChart('comparisonBarChart', chartData);
+      }
+    } catch (err) {
+      console.warn('[Compare] Could not render comparison chart:', err);
+    }
   },
 
   async renderSkillGapView() {

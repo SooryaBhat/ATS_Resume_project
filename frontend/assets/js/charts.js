@@ -184,10 +184,10 @@ const ChartEngine = {
     this.instances[canvasId] = new Chart(ctx, {
       type: 'bar',
       data: {
-        labels: dataToRender.map(item => item.name || item.filename || 'Resume'),
+        labels: dataToRender.map(item => item.name || item.filename || item.label || 'Resume'),
         datasets: [{
           label: 'ATS Score',
-          data: dataToRender.map(item => item.atsScore || item.ats_score || 0),
+          data: dataToRender.map(item => item.atsScore || item.ats_score || item.score || 0),
           backgroundColor: [colors.primary, colors.secondary, colors.tertiary, colors.success, colors.warning],
           borderRadius: 8
         }]
@@ -212,6 +212,11 @@ const ChartEngine = {
         }
       }
     });
+  },
+
+  // Alias helper method for comparison bar chart
+  renderComparisonBarChart(comparisonData, canvasId = 'comparisonBarChart') {
+    return this.initComparisonBarChart(canvasId, comparisonData);
   },
 
   // Destroy all instances on theme change to force re-color
