@@ -8,9 +8,6 @@ from backend.core.config import (
     APP_DESCRIPTION,
     APP_TITLE,
     APP_VERSION,
-    SPACY_MODEL_PRIMARY,
-    SPACY_MODEL_SECONDARY,
-    SENTENCE_TRANSFORMER_MODEL,
 )
 from backend.api.routes import router
 

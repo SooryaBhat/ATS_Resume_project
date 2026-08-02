@@ -269,10 +269,12 @@ const App = {
 
   // ── 6. Dashboard Data ─────────────────────────────────────────────────────
 
-  async loadLiveDashboardData() {
+  _lastDashboardFetch: 0,
+  _isFetchingDashboard: false,
+
+  async loadLiveDashboardData(force = false) {
     const token = Auth.getAccessToken();
     if (!token) {
-      console.log('[App] No active session — skipping authenticated dashboard calls.');
       this.renderNotifications([]);
       this.renderActivityFeed([]);
       this.renderHistoryView([]);
@@ -282,59 +284,69 @@ const App = {
       return;
     }
 
-    // Parallel: notifications + activity + history + dashboard stats + JD matches + roadmap + comparisons + profile
-    const [notifications, activity, history, stats, jdMatches, roadmap, comparisons, profile] = await Promise.allSettled([
-      token ? API.getNotifications(20, token) : Promise.resolve([]),
-      token ? API.getActivityFeed(10, token)  : Promise.resolve([]),
-      token ? API.getHistory(token)           : Promise.resolve([]),
-      token ? API.getDashboardStats(token)    : Promise.resolve(null),
-      token ? API.getJDMatches(token)         : Promise.resolve([]),
-      token ? API.getSkillRoadmap(token)      : Promise.resolve([]),
-      token ? API.getComparisons(token)       : Promise.resolve([]),
-      token ? API.getProfile(token)           : Promise.resolve(null),
-    ]);
+    if (this._isFetchingDashboard) return;
+    if (!force && Date.now() - this._lastDashboardFetch < 5000) return;
 
-    // Notifications
-    const notifData = notifications.status === 'fulfilled' && Array.isArray(notifications.value) ? notifications.value : [];
-    this.renderNotifications(notifData);
+    this._isFetchingDashboard = true;
+    this._lastDashboardFetch = Date.now();
 
-    // Activity feed
-    const actData = activity.status === 'fulfilled' && Array.isArray(activity.value) ? activity.value : [];
-    this.renderActivityFeed(actData);
+    try {
+      // Parallel: notifications + activity + history + dashboard stats + JD matches + roadmap + comparisons + profile
+      const [notifications, activity, history, stats, jdMatches, roadmap, comparisons, profile] = await Promise.allSettled([
+        API.getNotifications(20, token),
+        API.getActivityFeed(10, token),
+        API.getHistory(token),
+        API.getDashboardStats(token),
+        API.getJDMatches(token),
+        API.getSkillRoadmap(token),
+        API.getComparisons(token),
+        API.getProfile(token),
+      ]);
 
-    // History
-    const histData = history.status === 'fulfilled' && Array.isArray(history.value) ? history.value : [];
-    this.renderHistoryView(histData);
+      // Notifications
+      const notifData = notifications.status === 'fulfilled' && Array.isArray(notifications.value) ? notifications.value : [];
+      this.renderNotifications(notifData);
 
-    // Profile
-    if (profile.status === 'fulfilled' && profile.value) {
-      this.userProfile = profile.value;
-      this.applyProfileToUI(profile.value);
-    }
+      // Activity feed
+      const actData = activity.status === 'fulfilled' && Array.isArray(activity.value) ? activity.value : [];
+      this.renderActivityFeed(actData);
 
-    // Dashboard stats
-    if (stats.status === 'fulfilled' && stats.value) {
-      this.applyDashboardStats(stats.value);
-    }
+      // History
+      const histData = history.status === 'fulfilled' && Array.isArray(history.value) ? history.value : [];
+      this.renderHistoryView(histData);
 
-    // JD Match
-    const jdmData = jdMatches.status === 'fulfilled' && Array.isArray(jdMatches.value) ? jdMatches.value : [];
-    this.renderJdMatchView(jdmData);
+      // Profile
+      if (profile.status === 'fulfilled' && profile.value) {
+        this.userProfile = profile.value;
+        this.applyProfileToUI(profile.value);
+      }
 
-    // Skill Gap Roadmap
-    const roadData = roadmap.status === 'fulfilled' && Array.isArray(roadmap.value) ? roadmap.value : [];
-    this.renderSkillGapView(roadData);
+      // Dashboard stats
+      if (stats.status === 'fulfilled' && stats.value) {
+        this.applyDashboardStats(stats.value);
+      }
 
-    // Comparison Matrix
-    const compData = comparisons.status === 'fulfilled' && Array.isArray(comparisons.value) ? comparisons.value : [];
-    this.renderCompareView(compData);
+      // JD Match
+      const jdmData = jdMatches.status === 'fulfilled' && Array.isArray(jdMatches.value) ? jdMatches.value : [];
+      this.renderJdMatchView(jdmData);
 
-    // Active analysis fallback for preview
-    if (!this.currentAnalysis && histData.length > 0) {
-      this.currentAnalysis = histData[0].analysis_result || histData[0];
-    }
-    if (this.currentAnalysis) {
-      this.renderResumePreview(this.currentAnalysis);
+      // Skill Gap Roadmap
+      const roadData = roadmap.status === 'fulfilled' && Array.isArray(roadmap.value) ? roadmap.value : [];
+      this.renderSkillGapView(roadData);
+
+      // Comparison Matrix
+      const compData = comparisons.status === 'fulfilled' && Array.isArray(comparisons.value) ? comparisons.value : [];
+      this.renderCompareView(compData);
+
+      // Active analysis fallback for preview
+      if (!this.currentAnalysis && histData.length > 0) {
+        this.currentAnalysis = histData[0].analysis_result || histData[0];
+      }
+      if (this.currentAnalysis) {
+        this.renderResumePreview(this.currentAnalysis);
+      }
+    } finally {
+      this._isFetchingDashboard = false;
     }
   },
 

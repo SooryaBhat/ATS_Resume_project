@@ -105,9 +105,8 @@ const Router = {
 
   onViewLoaded(route) {
     if (typeof App !== 'undefined') {
-      if (App.loadLiveDashboardData) App.loadLiveDashboardData();
-
       if (route === 'dashboard') {
+        if (App.loadLiveDashboardData) App.loadLiveDashboardData();
         setTimeout(() => ChartEngine.rebuildCharts(), 150);
       } else if (route === 'compare' && App.renderCompareView) {
         App.renderCompareView();
