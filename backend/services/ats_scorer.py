@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Tuple, Any
 from backend.utils.file_utils import log_warning
 from backend.core.config import SENTENCE_TRANSFORMER_MODEL
 from backend.utils.matching import fuzzy_match_keywords
-from backend.services.nlp_pipeline import get_nlp, get_embedder
+from backend.services.nlp_pipeline import get_nlp, get_embedder, get_cached_embedding
 
 ZIP_CODE_PATTERN = r'\b\d{5}(?:-\d{4})?\b'
 
@@ -29,7 +29,7 @@ def detect_location_info(text: str, nlp: Optional[Any] = None) -> Dict:
     locations = []
 
     #method01: spacy NER
-    doc = nlp(text)
+    doc = nlp if hasattr(nlp, 'ents') else nlp(text)
     for ent in doc.ents:
         if ent.label_ in ['GPE', 'LOC']:
             locations.append({'text': ent.text, 'type': ent.label_.lower(), 'start': ent.start_char})
@@ -75,22 +75,19 @@ def detect_location_info(text: str, nlp: Optional[Any] = None) -> Dict:
     }
 
 def _calculate_semantic_similarity(skill: str, text: str, embedder: Optional[Any] = None) -> float:
-    #similarity = (A · B) / (|A| × |B|)
     if not skill or not text:
         return 0.0
 
-    if embedder is None:
-        embedder = get_embedder()
+    s_lower = skill.lower().strip()
+    t_lower = text.lower().strip()
+
+    if s_lower in t_lower:
+        return 1.0
 
     try:
-        skill_vec  = embedder.encode(skill, convert_to_tensor=False)
-        text_vec   = embedder.encode(text,  convert_to_tensor=False)
-
-        similarity = np.dot(skill_vec, text_vec) / (
-            np.linalg.norm(skill_vec) * np.linalg.norm(text_vec)
-        )
-
-        return float(max(0.0, min(1.0, similarity)))
+        from rapidfuzz import fuzz
+        score = fuzz.partial_token_set_ratio(s_lower, t_lower) / 100.0
+        return float(max(0.0, min(1.0, score)))
     except Exception as e:
         log_warning(f"Similarity error for '{skill}': {e}", context='ats_scorer')
         return 0.0

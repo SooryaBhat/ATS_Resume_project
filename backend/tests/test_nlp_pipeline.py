@@ -15,8 +15,6 @@ import os
 from unittest.mock import MagicMock
 
 import spacy
-from sentence_transformers import SentenceTransformer
-
 from backend.services.nlp_pipeline import (
     clean_text,
     tokenize_text,
@@ -27,6 +25,7 @@ from backend.services.nlp_pipeline import (
     score_resume_against_jd,
     nlp_parse_resume,
     nlp_parse_job_description,
+    get_embedder,
 )
 from backend.services.ats_scorer import calculate_overall_score, validate_skills_with_projects
 from backend.services.resume_analyzer import analyze_full_resume
@@ -42,10 +41,7 @@ class TestNLPPipeline(unittest.TestCase):
             cls.nlp = None
 
         # Instantiate lightweight embedder
-        try:
-            cls.embedder = SentenceTransformer('all-MiniLM-L6-v2')
-        except Exception:
-            cls.embedder = None
+        cls.embedder = get_embedder()
 
     def test_clean_text(self):
         raw = "Hello\r\n\tWorld! \u2022 Skill 1   \u2023 Skill 2"

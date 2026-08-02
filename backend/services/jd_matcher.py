@@ -1,7 +1,7 @@
 from typing import List, Dict, Optional, Any
 import numpy as np
 
-from backend.services.nlp_pipeline import get_nlp, get_embedder
+from backend.services.nlp_pipeline import get_nlp, get_embedder, calculate_bert_similarity
 from backend.utils.matching import fuzzy_match_keywords, normalize_skill
 from rapidfuzz import fuzz
 
@@ -9,16 +9,7 @@ from rapidfuzz import fuzz
 def calculate_semantic_similarity(
     resume_text: str, jd_text: str, embedder: Optional[Any] = None
 ) -> float:
-    if embedder is None:
-        embedder = get_embedder()
-
-    resume_emb = embedder.encode(resume_text[:5000], convert_to_tensor=False)
-    jd_emb     = embedder.encode(jd_text[:5000], convert_to_tensor=False)
-
-    similarity = np.dot(resume_emb, jd_emb) / (
-        np.linalg.norm(resume_emb) * np.linalg.norm(jd_emb)
-    )
-    return float(np.clip(similarity, 0.0, 1.0))
+    return calculate_bert_similarity(resume_text, jd_text, embedder)
 
 
 def identify_matched_keywords(
@@ -85,7 +76,7 @@ def calculate_match_percentage(
         return 0.0
     matched = identify_matched_keywords(resume_keywords, jd_keywords)
     keyword_overlap = len(matched) / len(jd_keywords)
-    match_pct = (keyword_overlap * 0.6 + semantic_similarity * 0.4) * 100
+    match_pct = (keyword_overlap * 0.80 + semantic_similarity * 0.20) * 100
     return float(np.clip(match_pct, 0.0, 100.0))
 
 

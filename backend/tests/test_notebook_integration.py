@@ -10,7 +10,7 @@ Verifies that:
 
 import unittest
 import spacy
-from sentence_transformers import SentenceTransformer
+from backend.services.nlp_pipeline import get_embedder
 
 from backend.services.nlp_pipeline import (
     score_resume_against_jd,
@@ -30,7 +30,7 @@ class TestNotebookIntegration(unittest.TestCase):
             cls.nlp = spacy.load("en_core_web_sm")
         except Exception:
             cls.nlp = spacy.blank("en")
-        cls.embedder = SentenceTransformer("all-MiniLM-L6-v2")
+        cls.embedder = get_embedder()
 
         cls.sample_resume = """
         John Doe

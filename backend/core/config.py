@@ -52,8 +52,8 @@ SUPPORTED_MIME_TYPES = {
 SUPPORTED_EXTENSIONS = {'.pdf', '.doc', '.docx'}
 
 # ── NLP Models ────────────────────────────────────────────────────────────────
-SPACY_MODEL_PRIMARY   = 'en_core_web_md'   # better accuracy
-SPACY_MODEL_SECONDARY = 'en_core_web_sm'   # Fixed: removed erroneous leading quote
+SPACY_MODEL_PRIMARY   = os.getenv('SPACY_MODEL_PRIMARY', 'en_core_web_sm')
+SPACY_MODEL_SECONDARY = 'en_core_web_sm'
 
 SENTENCE_TRANSFORMER_MODEL = os.getenv(
     'SENTENCE_TRANSFORMER_MODEL', 'all-MiniLM-L6-v2'

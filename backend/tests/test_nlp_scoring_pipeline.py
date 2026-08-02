@@ -11,22 +11,21 @@ Verifies that:
 import unittest
 import os
 import spacy
-from sentence_transformers import SentenceTransformer
+from backend.services.nlp_pipeline import get_embedder, calculate_bert_similarity
 
 from backend.services.resume_analyzer import analyze_full_resume
-from backend.services.nlp_pipeline import calculate_bert_similarity
 
 
 class TestNlpScoringPipeline(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        # Load spaCy small model & SentenceTransformer embedding model
+        # Load spaCy small model & lightweight production embedder
         try:
             cls.nlp = spacy.load("en_core_web_sm")
         except Exception:
             cls.nlp = spacy.blank("en")
-        cls.embedder = SentenceTransformer("all-MiniLM-L6-v2")
+        cls.embedder = get_embedder()
 
         cls.sample_resume = """
         Alex Morgan
