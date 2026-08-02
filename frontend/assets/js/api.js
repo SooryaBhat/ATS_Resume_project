@@ -13,7 +13,13 @@ const API = {
   // ── Internal helper ───────────────────────────────────────────────────────
   _headers(token = null) {
     const h = { 'Content-Type': 'application/json' };
-    if (token) h['Authorization'] = `Bearer ${token}`;
+    const validToken = (token && typeof token === 'string' && token !== 'undefined' && token !== 'null' && token.trim())
+      ? token.trim()
+      : (typeof Auth !== 'undefined' ? Auth.getAccessToken() : null);
+
+    if (validToken && validToken !== 'undefined' && validToken !== 'null') {
+      h['Authorization'] = `Bearer ${validToken}`;
+    }
     return h;
   },
 
@@ -64,7 +70,13 @@ const API = {
     if (jobDescription) formData.append('job_description', jobDescription);
 
     const headers = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const validToken = (token && typeof token === 'string' && token !== 'undefined' && token !== 'null' && token.trim())
+      ? token.trim()
+      : (typeof Auth !== 'undefined' ? Auth.getAccessToken() : null);
+
+    if (validToken && validToken !== 'undefined' && validToken !== 'null') {
+      headers['Authorization'] = `Bearer ${validToken}`;
+    }
 
     const resp = await fetch(`${API_BASE_URL}/analyze-resume`, {
       method: 'POST',
@@ -123,7 +135,13 @@ const API = {
    */
   async downloadPDF(analysisId = null, analysisData = null, token = null) {
     const headers = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const validToken = (token && typeof token === 'string' && token !== 'undefined' && token !== 'null' && token.trim())
+      ? token.trim()
+      : (typeof Auth !== 'undefined' ? Auth.getAccessToken() : null);
+
+    if (validToken && validToken !== 'undefined' && validToken !== 'null') {
+      headers['Authorization'] = `Bearer ${validToken}`;
+    }
 
     if (analysisId) {
       // Re-generate from stored analysis

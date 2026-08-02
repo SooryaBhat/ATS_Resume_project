@@ -271,6 +271,16 @@ const App = {
 
   async loadLiveDashboardData() {
     const token = Auth.getAccessToken();
+    if (!token) {
+      console.log('[App] No active session — skipping authenticated dashboard calls.');
+      this.renderNotifications([]);
+      this.renderActivityFeed([]);
+      this.renderHistoryView([]);
+      this.renderJdMatchView([]);
+      this.renderSkillGapView();
+      this.renderCompareView([]);
+      return;
+    }
 
     // Parallel: notifications + activity + history + dashboard stats + JD matches + roadmap + comparisons + profile
     const [notifications, activity, history, stats, jdMatches, roadmap, comparisons, profile] = await Promise.allSettled([
@@ -999,26 +1009,12 @@ const App = {
     let activeData = this.currentAnalysis || this.restoreAnalysisState();
 
     if (!activeData) {
-      try {
-        const token = Auth.getAccessToken();
-        if (token) {
-          const history = await API.getHistory(1, token);
-          if (history && history.length > 0) {
-            activeData = history[0].analysis_result || history[0];
-          }
-        }
-      } catch (e) {
-        console.warn('Could not fetch history for skill gap:', e);
-      }
-    }
-
-    if (!activeData) {
       container.innerHTML = `
         <div style="text-align: center; padding: 3rem;">
-          <i class="fa-solid fa-road" style="font-size: 3rem; color: var(--accent-primary); margin-bottom: 1rem;"></i>
-          <h3>No Resume Analysis Found</h3>
-          <p style="color: var(--text-secondary);">Please upload and analyze a resume first to generate your personalised skill gap roadmap.</p>
-          <button class="btn btn-primary btn-sm" style="margin-top: 1rem;" onclick="Router.navigate('analyze')">
+          <i class="fa-solid fa-road" style="font-size: 3rem; color: var(--accent-primary); margin-bottom: 1rem; display: block;"></i>
+          <h3 style="margin-bottom: 0.5rem;">Analyze a resume to generate your personalized skill roadmap.</h3>
+          <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1.25rem;">Upload your resume to identify missing target skills, unvalidated experience, and actionable steps.</p>
+          <button class="btn btn-primary btn-sm" onclick="Router.navigate('analyze')">
             <i class="fa-solid fa-plus"></i> Analyze Resume Now
           </button>
         </div>`;

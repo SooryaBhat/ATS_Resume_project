@@ -173,6 +173,8 @@ async def analyze_resume(
         jd_comparison_result = JDComparison(
             match_percentage    = round(float(result['jd_comparison'].get('match_percentage',    0.0)), 1),
             semantic_similarity = round(float(result['jd_comparison'].get('semantic_similarity', 0.0)), 3),
+            matching_skills     = result['jd_comparison'].get('matching_skills', []),
+            missing_skills      = result['jd_comparison'].get('missing_skills', []),
             matched_keywords    = result['jd_comparison'].get('matched_keywords', [])[:20],
             missing_keywords    = result['jd_comparison'].get('missing_keywords', [])[:15],
             skills_gap          = result['jd_comparison'].get('skills_gap',       [])[:10],

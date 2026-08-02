@@ -69,6 +69,11 @@ def get_embedder() -> Any:
     if _embedder_instance is None:
         with _model_lock:
             if _embedder_instance is None:
+                try:
+                    import torch
+                    torch.set_num_threads(1)
+                except Exception:
+                    pass
                 from sentence_transformers import SentenceTransformer
                 logger.info(f"Lazy-loading SentenceTransformer: {SENTENCE_TRANSFORMER_MODEL}")
                 _embedder_instance = SentenceTransformer(SENTENCE_TRANSFORMER_MODEL)
@@ -424,8 +429,14 @@ def calculate_bert_similarity(
         embedder = get_embedder()
 
     try:
-        emb_resume = embedder.encode(resume_text[:5000], convert_to_numpy=True)
-        emb_jd = embedder.encode(jd_text[:5000], convert_to_numpy=True)
+        try:
+            import torch
+            with torch.no_grad():
+                emb_resume = embedder.encode(resume_text[:4000], convert_to_numpy=True)
+                emb_jd = embedder.encode(jd_text[:4000], convert_to_numpy=True)
+        except Exception:
+            emb_resume = embedder.encode(resume_text[:4000], convert_to_numpy=True)
+            emb_jd = embedder.encode(jd_text[:4000], convert_to_numpy=True)
 
         norm_resume = np.linalg.norm(emb_resume)
         norm_jd = np.linalg.norm(emb_jd)

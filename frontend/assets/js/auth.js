@@ -300,8 +300,12 @@ const Auth = {
   _loadStoredSession() {
     try {
       const raw = localStorage.getItem('talentmatch_session');
-      if (!raw) return null;
+      if (!raw || raw === 'undefined' || raw === 'null') return null;
       const stored = JSON.parse(raw);
+      if (!stored || !stored.access_token || stored.access_token === 'undefined' || stored.access_token === 'null') {
+        localStorage.removeItem('talentmatch_session');
+        return null;
+      }
       // Discard obviously expired sessions (token itself may still be valid
       // up to grace period, _validateToken() will confirm)
       if (Date.now() > stored.expires_at + 300_000) {
@@ -330,8 +334,19 @@ const Auth = {
 
   // ── Public helpers ───────────────────────────────────────────────────────
 
-  getAccessToken() { return this.accessToken; },
-  isAuthenticated() { return !!this.currentUser && !!this.accessToken; },
+  getAccessToken() {
+    if (
+      !this.accessToken ||
+      typeof this.accessToken !== 'string' ||
+      this.accessToken === 'undefined' ||
+      this.accessToken === 'null' ||
+      !this.accessToken.trim()
+    ) {
+      return null;
+    }
+    return this.accessToken.trim();
+  },
+  isAuthenticated() { return !!this.getAccessToken() && !!this.currentUser; },
 
   // ── Config fetch ─────────────────────────────────────────────────────────
 
