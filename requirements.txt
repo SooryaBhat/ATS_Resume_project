@@ -3,8 +3,8 @@
 # Install with:
 #     pip install -r requirements.txt
 #
-# After installing, download the spaCy model the backend uses at startup:
-#     python -m spacy download en_core_web_md
+# After installing, the spaCy model is automatically loaded via wheel or:
+#     python -m spacy download en_core_web_sm
 #
 # WeasyPrint (used for PDF export) also needs system libraries on Linux:
 #     sudo dnf install -y cairo pango gdk-pixbuf2 libffi    # Fedora
@@ -18,7 +18,9 @@ python-multipart>=0.0.9      # required by FastAPI for File/Form uploads
 python-dotenv>=1.0
 
 # ── Backend: NLP / ML ──
-spacy>=3.7,<4.0
+spacy==3.7.5
+thinc==8.2.3
+blis==0.7.11
 https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.7.1/en_core_web_sm-3.7.1-py3-none-any.whl
 scikit-learn>=1.4
 numpy>=1.26
