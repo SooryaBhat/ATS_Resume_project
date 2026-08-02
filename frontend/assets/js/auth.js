@@ -337,32 +337,64 @@ const Auth = {
 
   async _fetchConfig() {
     if (this._config) return this._config;
-    try {
-      const controller = new AbortController();
-      const timeoutId  = setTimeout(() => controller.abort(), 5000);
-      const baseUrl    = typeof API_BASE_URL !== 'undefined' ? API_BASE_URL : 'https://talentmatch-ai-grv6.onrender.com/api/v1';
-      const resp       = await fetch(`${baseUrl}/config`, {
-        signal: controller.signal,
-      });
-      clearTimeout(timeoutId);
-      if (!resp.ok) {
-        console.error('[Auth] /api/v1/config returned HTTP', resp.status);
-        return null;
+
+    const maxRetries = 3;
+    const timeoutMs  = 30000; // 30s timeout for Render free tier cold-start wake-up
+    const baseUrl    = (typeof API_BASE_URL !== 'undefined' && API_BASE_URL)
+      ? API_BASE_URL
+      : 'https://talentmatch-ai-grv6.onrender.com/api/v1';
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        if (window.App && App.showToast) {
+          if (attempt === 1) {
+            App.showToast('Starting backend, please wait...', 'info');
+          } else {
+            App.showToast(`Starting backend, please wait... (Attempt ${attempt}/${maxRetries})`, 'info');
+          }
+        }
+
+        console.log(`[Auth] Config fetch attempt ${attempt}/${maxRetries} from ${baseUrl}/config…`);
+        const controller = new AbortController();
+        const timeoutId  = setTimeout(() => controller.abort(), timeoutMs);
+        const resp       = await fetch(`${baseUrl}/config`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (!resp.ok) {
+          console.error(`[Auth] /api/v1/config returned HTTP ${resp.status} (attempt ${attempt}/${maxRetries})`);
+          throw new Error(`HTTP ${resp.status}`);
+        }
+
+        const cfg = await resp.json();
+        if (!cfg.supabase_url || !cfg.supabase_anon_key) {
+          console.error('[Auth] Config payload missing required fields:', cfg);
+          throw new Error('Invalid config payload');
+        }
+
+        if (window.App && App.showToast && attempt > 1) {
+          App.showToast('Backend connected successfully!', 'success');
+        }
+
+        return cfg;
+      } catch (err) {
+        const isTimeout = err.name === 'AbortError';
+        console.warn(
+          `[Auth] Config fetch attempt ${attempt}/${maxRetries} failed: ` +
+          (isTimeout ? 'Timed out after 30s' : err.message)
+        );
+
+        if (attempt < maxRetries) {
+          const backoffMs = Math.pow(2, attempt) * 1000; // 2s, 4s
+          await new Promise(resolve => setTimeout(resolve, backoffMs));
+        }
       }
-      const cfg = await resp.json();
-      if (!cfg.supabase_url || !cfg.supabase_anon_key) {
-        console.error('[Auth] Config payload missing required fields:', cfg);
-        return null;
-      }
-      return cfg;
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        console.error('[Auth] Config fetch timed out after 5s — check backend connectivity');
-      } else {
-        console.error('[Auth] Config fetch failed:', err.message);
-      }
-      return null;
     }
+
+    console.error('[Auth] Config fetch failed after 3 attempts — check backend connectivity');
+    if (window.App && App.showToast) {
+      App.showToast('Backend server could not be reached. Please refresh to try again.', 'error');
+    }
+    return null;
   },
 
   // ── UI helpers ────────────────────────────────────────────────────────────

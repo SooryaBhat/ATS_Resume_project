@@ -317,7 +317,7 @@ const App = {
 
     // Comparison Matrix
     const compData = comparisons.status === 'fulfilled' && Array.isArray(comparisons.value) ? comparisons.value : [];
-    this.renderComparisonView(compData);
+    this.renderCompareView(compData);
 
     // Active analysis fallback for preview
     if (!this.currentAnalysis && histData.length > 0) {
@@ -864,6 +864,10 @@ const App = {
         </div>
       </div>
     `).join('');
+  },
+
+  renderComparisonView(data) {
+    return this.renderCompareView(data);
   },
 
   async renderCompareView() {
