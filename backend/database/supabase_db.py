@@ -586,98 +586,145 @@ async def delete_roadmap_item(roadmap_id: str, user_id: str) -> bool:
 # CHAT SESSIONS & MESSAGES
 # ══════════════════════════════════════════════════════════════════════════════
 
+# In-memory chat stores for unconfigured / fallback mode
+_MEMORY_CHAT_SESSIONS: Dict[str, Dict[str, Any]] = {}
+_MEMORY_CHAT_MESSAGES: Dict[str, List[Dict[str, Any]]] = {}
+
+
 async def create_chat_session(user_id: str, title: str, analysis_id: Optional[str] = None) -> Optional[Dict]:
-    if not _configured():
-        return None
-    payload = {
+    session_id = str(uuid.uuid4())
+    now_str = _now()
+    fallback_session = {
+        'id':          session_id,
         'user_id':     user_id,
         'title':       title,
-        'created_at':  _now(),
-        'updated_at':  _now(),
+        'analysis_id': analysis_id,
+        'created_at':  now_str,
+        'updated_at':  now_str,
+    }
+    _MEMORY_CHAT_SESSIONS[session_id] = fallback_session
+
+    if not _configured():
+        return fallback_session
+
+    payload = {
+        'id':          session_id,
+        'user_id':     user_id,
+        'title':       title,
+        'created_at':  now_str,
+        'updated_at':  now_str,
     }
     if analysis_id:
         payload['analysis_id'] = analysis_id
+
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(_rest('chat_sessions'), json=payload, headers=_get_headers())
             if resp.status_code in (200, 201) and resp.json():
-                return resp.json()[0]
-            return None
+                res_obj = resp.json()[0]
+                _MEMORY_CHAT_SESSIONS[res_obj.get('id', session_id)] = res_obj
+                return res_obj
+            logger.warning(f"Supabase chat_sessions insert returned status {resp.status_code} — using memory fallback")
+            return fallback_session
     except Exception as exc:
-        logger.error(f'create_chat_session exception: {exc}')
-        return None
+        logger.error(f'create_chat_session exception: {exc} — using memory fallback')
+        return fallback_session
 
 
 async def get_chat_sessions(user_id: str) -> List[Dict]:
-    if not _configured():
-        return []
-    url = f"{_rest('chat_sessions')}?user_id=eq.{user_id}&select=*&order=updated_at.desc"
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(url, headers=_get_headers())
-            return resp.json() if resp.status_code == 200 else []
-    except Exception as exc:
-        logger.error(f'get_chat_sessions exception: {exc}')
-        return []
+    if _configured():
+        url = f"{_rest('chat_sessions')}?user_id=eq.{user_id}&select=*&order=updated_at.desc"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url, headers=_get_headers())
+                if resp.status_code == 200:
+                    return resp.json()
+        except Exception as exc:
+            logger.error(f'get_chat_sessions exception: {exc}')
+
+    user_sessions = [s for s in _MEMORY_CHAT_SESSIONS.values() if s.get('user_id') == user_id]
+    return sorted(user_sessions, key=lambda x: x.get('updated_at', ''), reverse=True)
 
 
 async def get_chat_session(session_id: str, user_id: str) -> Optional[Dict]:
-    if not _configured():
-        return None
-    url = f"{_rest('chat_sessions')}?id=eq.{session_id}&user_id=eq.{user_id}&select=*"
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(url, headers=_get_headers())
-            if resp.status_code != 200 or not resp.json():
-                return None
-            return resp.json()[0]
-    except Exception as exc:
-        logger.error(f'get_chat_session exception: {exc}')
-        return None
+    if _configured():
+        url = f"{_rest('chat_sessions')}?id=eq.{session_id}&user_id=eq.{user_id}&select=*"
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url, headers=_get_headers())
+                if resp.status_code == 200 and resp.json():
+                    return resp.json()[0]
+        except Exception as exc:
+            logger.error(f'get_chat_session exception: {exc}')
+
+    session = _MEMORY_CHAT_SESSIONS.get(session_id)
+    if session and session.get('user_id') == user_id:
+        return session
+    return None
 
 
 async def save_chat_message(session_id: str, user_id: str, role: str, content: str) -> Optional[Dict]:
-    if not _configured():
-        return None
-    payload = {
+    msg_id = str(uuid.uuid4())
+    now_str = _now()
+    fallback_msg = {
+        'id':         msg_id,
         'session_id': session_id,
         'user_id':    user_id,
         'role':       role,
         'content':    content,
-        'created_at': _now(),
+        'created_at': now_str,
+    }
+    _MEMORY_CHAT_MESSAGES.setdefault(session_id, []).append(fallback_msg)
+    if session_id in _MEMORY_CHAT_SESSIONS:
+        _MEMORY_CHAT_SESSIONS[session_id]['updated_at'] = now_str
+
+    if not _configured():
+        return fallback_msg
+
+    payload = {
+        'id':         msg_id,
+        'session_id': session_id,
+        'user_id':    user_id,
+        'role':       role,
+        'content':    content,
+        'created_at': now_str,
     }
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             resp = await client.post(_rest('chat_messages'), json=payload, headers=_get_headers())
             if resp.status_code in (200, 201) and resp.json():
-                # Update session updated_at
                 await _touch_chat_session(session_id)
                 return resp.json()[0]
-            return None
+            return fallback_msg
     except Exception as exc:
         logger.error(f'save_chat_message exception: {exc}')
-        return None
+        return fallback_msg
 
 
 async def get_chat_messages(session_id: str, user_id: str) -> List[Dict]:
-    if not _configured():
-        return []
-    url = (
-        f"{_rest('chat_messages')}"
-        f"?session_id=eq.{session_id}&user_id=eq.{user_id}&select=*&order=created_at.asc"
-    )
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(url, headers=_get_headers())
-            return resp.json() if resp.status_code == 200 else []
-    except Exception as exc:
-        logger.error(f'get_chat_messages exception: {exc}')
-        return []
+    if _configured():
+        url = (
+            f"{_rest('chat_messages')}"
+            f"?session_id=eq.{session_id}&user_id=eq.{user_id}&select=*&order=created_at.asc"
+        )
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.get(url, headers=_get_headers())
+                if resp.status_code == 200 and resp.json():
+                    return resp.json()
+        except Exception as exc:
+            logger.error(f'get_chat_messages exception: {exc}')
+
+    return _MEMORY_CHAT_MESSAGES.get(session_id, [])
 
 
 async def delete_chat_session(session_id: str, user_id: str) -> bool:
+    _MEMORY_CHAT_SESSIONS.pop(session_id, None)
+    _MEMORY_CHAT_MESSAGES.pop(session_id, None)
+
     if not _configured():
-        return False
+        return True
+
     url = f"{_rest('chat_sessions')}?id=eq.{session_id}&user_id=eq.{user_id}"
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
@@ -685,7 +732,7 @@ async def delete_chat_session(session_id: str, user_id: str) -> bool:
             return resp.status_code in (200, 204)
     except Exception as exc:
         logger.error(f'delete_chat_session exception: {exc}')
-        return False
+        return True
 
 
 async def _touch_chat_session(session_id: str) -> None:
