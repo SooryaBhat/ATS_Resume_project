@@ -63,18 +63,23 @@ def get_nlp() -> Any:
                     _nlp_instance = spacy.load(SPACY_MODEL_PRIMARY)
                     logger.info(f"Successfully loaded spaCy model: {SPACY_MODEL_PRIMARY}")
                 except OSError:
-                    logger.info(f"spaCy model '{SPACY_MODEL_PRIMARY}' not found locally — attempting automatic download...")
                     try:
-                        import spacy.cli
-                        spacy.cli.download(SPACY_MODEL_PRIMARY)
-                        _nlp_instance = spacy.load(SPACY_MODEL_PRIMARY)
-                        logger.info(f"Successfully downloaded and loaded spaCy model: {SPACY_MODEL_PRIMARY}")
-                    except Exception as err:
-                        logger.error(f"Critical error: spaCy model '{SPACY_MODEL_PRIMARY}' could not be loaded: {err}")
-                        raise RuntimeError(
-                            f"Required spaCy model '{SPACY_MODEL_PRIMARY}' is not installed and automatic download failed. "
-                            f"Ensure 'python -m spacy download {SPACY_MODEL_PRIMARY}' is executed during build."
-                        ) from err
+                        import en_core_web_sm
+                        _nlp_instance = en_core_web_sm.load()
+                        logger.info("Successfully loaded spaCy model via 'import en_core_web_sm'")
+                    except Exception:
+                        logger.info(f"spaCy model '{SPACY_MODEL_PRIMARY}' not found locally — attempting automatic download...")
+                        try:
+                            import spacy.cli
+                            spacy.cli.download(SPACY_MODEL_PRIMARY)
+                            _nlp_instance = spacy.load(SPACY_MODEL_PRIMARY)
+                            logger.info(f"Successfully downloaded and loaded spaCy model: {SPACY_MODEL_PRIMARY}")
+                        except Exception as err:
+                            logger.error(f"Critical error: spaCy model '{SPACY_MODEL_PRIMARY}' could not be loaded: {err}")
+                            raise RuntimeError(
+                                f"Required spaCy model '{SPACY_MODEL_PRIMARY}' is not installed and automatic download failed. "
+                                f"Ensure 'python -m spacy download {SPACY_MODEL_PRIMARY}' is executed during build."
+                            ) from err
     return _nlp_instance
 
 
