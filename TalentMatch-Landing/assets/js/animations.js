@@ -23,7 +23,6 @@ function initScrollObserver() {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         entry.target.classList.add('active');
-        // Unobserve after animating once for performance
         obs.unobserve(entry.target);
       }
     });
@@ -33,7 +32,7 @@ function initScrollObserver() {
 }
 
 /**
- * Animated Stat Counter when scrolled into view
+ * Animated Highlights & Verifiable Project Metrics
  */
 function initStatCounters() {
   const statNumbers = document.querySelectorAll('.stat-number');
@@ -46,11 +45,16 @@ function initStatCounters() {
     entries.forEach(entry => {
       if (entry.isIntersecting) {
         const el = entry.target;
-        const targetValue = parseInt(el.getAttribute('data-target') || '0', 10);
+        const targetAttr = el.getAttribute('data-target') || '';
         const prefix = el.getAttribute('data-prefix') || '';
         const suffix = el.getAttribute('data-suffix') || '';
         
-        animateCounter(el, targetValue, prefix, suffix);
+        const numericVal = parseFloat(targetAttr);
+        if (!isNaN(numericVal) && isFinite(numericVal)) {
+          animateCounter(el, numericVal, prefix, suffix);
+        } else {
+          el.textContent = `${prefix}${targetAttr}${suffix}`;
+        }
         obs.unobserve(el);
       }
     });
@@ -63,9 +67,9 @@ function initStatCounters() {
  * Helper function to run numeric count animation
  */
 function animateCounter(element, target, prefix, suffix) {
-  let start = 0;
-  const duration = 2000;
+  const duration = 1800;
   const startTime = performance.now();
+  const isDecimal = target % 1 !== 0;
 
   function updateCounter(currentTime) {
     const elapsedTime = currentTime - startTime;
@@ -73,14 +77,15 @@ function animateCounter(element, target, prefix, suffix) {
     
     // EaseOutCubic timing function
     const easeProgress = 1 - Math.pow(1 - progress, 3);
-    const currentValue = Math.floor(easeProgress * target);
+    const currentValue = easeProgress * target;
 
-    element.textContent = `${prefix}${currentValue.toLocaleString()}${suffix}`;
+    const formattedValue = isDecimal ? currentValue.toFixed(1) : Math.floor(currentValue);
+    element.textContent = `${prefix}${formattedValue}${suffix}`;
 
     if (progress < 1) {
       requestAnimationFrame(updateCounter);
     } else {
-      element.textContent = `${prefix}${target.toLocaleString()}${suffix}`;
+      element.textContent = `${prefix}${isDecimal ? target.toFixed(1) : target}${suffix}`;
     }
   }
 
