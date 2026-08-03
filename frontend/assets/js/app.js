@@ -119,9 +119,39 @@ const App = {
       }
     });
 
-    // Mobile nav
-    document.getElementById('mobile-nav-toggle')?.addEventListener('click', () => {
-      document.querySelector('.app-sidebar')?.classList.toggle('active');
+    // Mobile Navigation Drawer Controller
+    const sidebar = document.querySelector('.app-sidebar');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    const mobileToggle = document.getElementById('mobile-nav-toggle');
+
+    const toggleMobileNav = (forceState) => {
+      if (!sidebar) return;
+      const isOpen = typeof forceState === 'boolean' ? forceState : !sidebar.classList.contains('active');
+      if (isOpen) {
+        sidebar.classList.add('active');
+        backdrop?.classList.add('active');
+        document.body.style.overflow = 'hidden';
+      } else {
+        sidebar.classList.remove('active');
+        backdrop?.classList.remove('active');
+        document.body.style.overflow = '';
+      }
+    };
+
+    mobileToggle?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleMobileNav();
+    });
+
+    backdrop?.addEventListener('click', () => toggleMobileNav(false));
+
+    // Automatically close sidebar when selecting a page link on mobile
+    document.querySelectorAll('.sidebar-link').forEach(link => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth <= 1024) {
+          toggleMobileNav(false);
+        }
+      });
     });
 
     // File upload / drag & drop

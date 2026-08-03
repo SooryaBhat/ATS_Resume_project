@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="TalentMatch AI — AI-Powered Resume Analysis, ATS Optimization & Career Intelligence Platform built with FastAPI, Google Gemini 2.5 Flash, Supabase & spaCy.">
+  <meta name="keywords" content="TalentMatch AI, ATS Resume Checker, AI Resume Analyzer, Career Intelligence, Gemini AI, FastAPI, Supabase">
+  <meta name="author" content="Soorya Bhat">
+  
+  <!-- Open Graph / Social Meta -->
+  <meta property="og:title" content="TalentMatch AI — Career Intelligence & ATS Platform">
+  <meta property="og:description" content="AI-Powered Resume Analysis, ATS Optimization & Career Intelligence Platform.">
+  <meta property="og:type" content="website">
+  
+  <title>TalentMatch AI — AI-Powered Resume & ATS Intelligence Platform</title>
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="assets/css/variables.css">
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/animations.css">
+</head>
+<body>
+
+  <!-- Ambient Animated Background Background -->
+  <div class="bg-ambient">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+  <div class="bg-grid"></div>
+
+  <!-- Navigation Bar -->
+  <header>
+    <nav class="navbar">
+      <div class="container nav-container">
+        <a href="#" class="nav-logo">
+          <div class="logo-badge">⚡</div>
+          <span>TalentMatch <span class="text-gradient">AI</span></span>
+        </a>
+
+        <ul class="nav-menu">
+          <li><a href="#overview" class="nav-link">Overview</a></li>
+          <li><a href="#features" class="nav-link">Features</a></li>
+          <li><a href="#showcase" class="nav-link">Showcase</a></li>
+          <li><a href="#architecture" class="nav-link">Architecture</a></li>
+          <li><a href="#workflow" class="nav-link">Workflow</a></li>
+          <li><a href="#developer" class="nav-link">Developer</a></li>
+        </ul>
+
+        <div class="nav-cta">
+          <button class="btn btn-secondary btn-sm btn-github" id="nav-btn-repo">
+            <svg class="btn-icon" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            GitHub
+          </button>
+          <button class="btn btn-primary btn-sm btn-demo" id="nav-btn-demo">
+            Live Demo ↗
+          </button>
+        </div>
+
+        <button class="mobile-toggle" aria-label="Toggle Menu">☰</button>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ----------------------------------------------------------------------
+         HERO SECTION
+    ----------------------------------------------------------------------- -->
+    <section class="hero" id="hero">
+      <div class="container">
+        <div class="hero-pill reveal-fade">
+          <span class="hero-pill-sparkle">✨</span> Powered by Gemini 2.5 Flash & FastAPI
+        </div>
+
+        <h1 class="hero-title reveal-fade delay-100">
+          TalentMatch <span class="text-gradient">AI</span>
+        </h1>
+
+        <p class="hero-subtitle reveal-fade delay-200">
+          AI-Powered Resume Analysis, ATS Optimization & Career Intelligence Platform
+        </p>
+
+        <div class="hero-actions reveal-fade delay-300">
+          <button class="btn btn-primary btn-lg btn-demo" id="hero-btn-demo">
+            <span>Launch Live Demo</span>
+            <svg class="btn-icon" viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          
+          <button class="btn btn-secondary btn-lg btn-github" id="hero-btn-repo">
+            <svg class="btn-icon" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            View Repository
+          </button>
+        </div>
+
+        <!-- Apple-Style Hero Mockup Preview -->
+        <div class="macbook-mockup animate-float reveal-zoom delay-400">
+          <div class="mockup-header">
+            <div class="dots">
+              <span class="dot dot-red"></span>
+              <span class="dot dot-yellow"></span>
+              <span class="dot dot-green"></span>
+            </div>
+            <div class="mockup-address-bar">
+              🔒 https://talentmatchai-three.vercel.app/dashboard
+            </div>
+          </div>
+          <div class="mockup-body">
+            <img src="assets/screenshots/Dashboard.png" alt="TalentMatch AI Dashboard Screenshot" class="mockup-img" loading="eager">
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ----------------------------------------------------------------------
+         PROJECT OVERVIEW SECTION
+    ----------------------------------------------------------------------- -->
+    <section class="section" id="overview">
+      <div class="container">
+        <div class="section-header reveal-fade">
+          <div class="section-tag">Platform Overview</div>
+          <h2 class="section-title">Comprehensive AI Career Suite</h2>
+          <p class="section-subtitle">
+            TalentMatch AI bridges the gap between candidates and recruiters by using advanced NLP models to evaluate, optimize, and tailor resumes for maximum ATS compatibility.
+          </p>
+        </div>
+
+        <div class="overview-grid">
+          <div class="glass-card overview-card reveal-fade delay-100">
+            <div class="card-icon-wrapper">📄</div>
+            <h3 class="card-title">Resume Parsing</h3>
+            <p class="card-desc">Extracts deep entity structures, work history, skills, and metrics from PDF resumes using spaCy and custom NLP pipelines.</p>
+          </div>
+
+          <div class="glass-card overview-card reveal-fade delay-200">
+            <div class="card-icon-wrapper">🎯</div>
+            <h3 class="card-title">ATS Scoring</h3>
+            <p class="card-desc">Computes real-time ATS match percentage scores evaluating formatting, keyword density, and structural compliance.</p>
+          </div>
+
+          <div class="glass-card overview-card reveal-fade delay-300">
+            <div class="card-icon-wrapper">🔍</div>
+            <h3 class="card-title">JD Matching</h3>
+            <p class="card-desc">Compares resumes against specific Job Descriptions to identify critical missing keywords and skill requirements.</p>
+          </div>
+
+          <div class="glass-card overview-card reveal-fade delay-400">
+            <div class="card-icon-wrapper">🤖</div>
+            <h3 class="card-title">AI Assistant</h3>
+            <p class="card-desc">Gemini 2.5 Flash powered career copilot offering real-time bullet point improvement and interview prep guidance.</p>
+          </div>
+
+          <div class="glass-card overview-card reveal-fade delay-100">
+            <div class="card-icon-wrapper">✍️</div>
+            <h3 class="card-title">Resume Tailoring</h3>
+            <p class="card-desc">Generates role-tailored bullet points and summary statements engineered to pass automated recruiter screeners.</p>
+          </div>
+
+          <div class="glass-card overview-card reveal-fade delay-200">
+            <div class="card-icon-wrapper">🗺️</div>
+            <h3 class="card-title">Skill Gap Roadmap</h3>
+            <p class="card-desc">Interactive personalized roadmap providing actionable step-by-step skill acquisition plans for targeted roles.</p>
+          </div>
+
+          <div class="glass-card overview-card reveal-fade delay-300">
+            <div class="card-icon-wrapper">⚖️</div>
+            <h3 class="card-title">Resume Comparison</h3>
+            <p class="card-desc">Side-by-side benchmark comparison matrix to evaluate multiple resume iterations against target industry standards.</p>
+          </div>
+
+          <div class="glass-card overview-card reveal-fade delay-400">
+            <div class="card-icon-wrapper">📊</div>
+            <h3 class="card-title">PDF Export Reports</h3>
+            <p class="card-desc">Download comprehensive full-color diagnostic reports detailing ATS scores, keyword gaps, and optimization recommendations.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ----------------------------------------------------------------------
+         INTERACTIVE SCREENSHOTS SHOWCASE (APPLE-STYLE)
+    ----------------------------------------------------------------------- -->
+    <section class="section" id="showcase">
+      <div class="container">
+        <div class="section-header reveal-fade">
+          <div class="section-tag">Interactive Showcase</div>
+          <h2 class="section-title">Designed for Modern Professionals</h2>
+          <p class="section-subtitle">
+            Experience a sleek, ultra-responsive web dashboard with real-time feedback, interactive analytics, and AI career guidance.
+          </p>
+        </div>
+
+        <div class="showcase-container">
+          <!-- Row 1: Deep Resume Analysis -->
+          <div class="showcase-row">
+            <div class="showcase-text reveal-slide-left">
+              <div class="showcase-badge">01 — Core Analytics</div>
+              <h3 class="showcase-heading">Deep Resume Parsing & ATS Intelligence</h3>
+              <p class="showcase-paragraph">
+                Upload your resume and instantly receive a granular breakdown of your candidate profile. Discover formatting errors, keyword strength, and structure scores before recruiters see it.
+              </p>
+              <ul class="showcase-highlights">
+                <li class="showcase-item"><span class="check-icon">✓</span> Real-time ATS match rating & formatting health score</li>
+                <li class="showcase-item"><span class="check-icon">✓</span> Automatic entity extraction (Skills, Experience, Education)</li>
+                <li class="showcase-item"><span class="check-icon">✓</span> Instant missing key section warnings</li>
+              </ul>
+            </div>
+            <div class="showcase-mockup reveal-slide-right">
+              <div class="macbook-mockup">
+                <div class="mockup-header">
+                  <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+                  <div class="mockup-address-bar">🔒 talentmatchai.app/analyse-resume</div>
+                </div>
+                <div class="mockup-body">
+                  <img src="assets/screenshots/Analyse_resume.png" alt="Resume Analysis Screen" class="mockup-img" loading="lazy">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 2: JD Matching -->
+          <div class="showcase-row reverse">
+            <div class="showcase-text reveal-slide-right">
+              <div class="showcase-badge">02 — Target Alignment</div>
+              <h3 class="showcase-heading">Precision Job Description Matching</h3>
+              <p class="showcase-paragraph">
+                Paste any job description to compare your qualifications directly against recruiter expectations. Identify high-impact missing keywords and skill gaps instantly.
+              </p>
+              <ul class="showcase-highlights">
+                <li class="showcase-item"><span class="check-icon">✓</span> Keyword overlap & semantic alignment metrics</li>
+                <li class="showcase-item"><span class="check-icon">✓</span> Role relevance scoring</li>
+                <li class="showcase-item"><span class="check-icon">✓</span> Targeted bullet point optimization suggestions</li>
+              </ul>
+            </div>
+            <div class="showcase-mockup reveal-slide-left">
+              <div class="macbook-mockup">
+                <div class="mockup-header">
+                  <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+                  <div class="mockup-address-bar">🔒 talentmatchai.app/jd-matching</div>
+                </div>
+                <div class="mockup-body">
+                  <img src="assets/screenshots/JD_matching.png" alt="JD Matching Screen" class="mockup-img" loading="lazy">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 3: AI Career Copilot -->
+          <div class="showcase-row">
+            <div class="showcase-text reveal-slide-left">
+              <div class="showcase-badge">03 — Gemini Intelligence</div>
+              <h3 class="showcase-heading">AI Career Assistant & Interactive Guidance</h3>
+              <p class="showcase-paragraph">
+                Engage with your personal AI career coach powered by Google Gemini 2.5 Flash. Rewrite weak bullet points, craft compelling cover letters, and prepare for interviews.
+              </p>
+              <ul class="showcase-highlights">
+                <li class="showcase-item"><span class="check-icon">✓</span> Context-aware resume bullet rewriting</li>
+                <li class="showcase-item"><span class="check-icon">✓</span> Custom interview question generator</li>
+                <li class="showcase-item"><span class="check-icon">✓</span> Personalized career positioning strategies</li>
+              </ul>
+            </div>
+            <div class="showcase-mockup reveal-slide-right">
+              <div class="macbook-mockup">
+                <div class="mockup-header">
+                  <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+                  <div class="mockup-address-bar">🔒 talentmatchai.app/ai-assistance</div>
+                </div>
+                <div class="mockup-body">
+                  <img src="assets/screenshots/AI_assistance.png" alt="AI Assistance Screen" class="mockup-img" loading="lazy">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 4: Skill Gap & Learning Roadmap -->
+          <div class="showcase-row reverse">
+            <div class="showcase-text reveal-slide-right">
+              <div class="showcase-badge">04 — Skill Development</div>
+              <h3 class="showcase-heading">Interactive Skill Gap Roadmap</h3>
+              <p class="showcase-paragraph">
+                Never wonder what to learn next. TalentMatch AI maps out your skill deficits and creates an actionable learning trajectory customized to your dream position.
+              </p>
+              <ul class="showcase-highlights">
+                <li class="showcase-item"><span class="check-icon">✓</span> Targeted skill acquisition recommendations</li>
+                <li class="showcase-item"><span class="check-icon">✓</span> Prioritized learning milestones</li>
+                <li class="showcase-item"><span class="check-icon">✓</span> Career progression tracking</li>
+              </ul>
+            </div>
+            <div class="showcase-mockup reveal-slide-left">
+              <div class="macbook-mockup">
+                <div class="mockup-header">
+                  <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+                  <div class="mockup-address-bar">🔒 talentmatchai.app/skill-gap</div>
+                </div>
+                <div class="mockup-body">
+                  <img src="assets/screenshots/skill_gap.png" alt="Skill Gap Screen" class="mockup-img" loading="lazy">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Row 5: Multi-Resume Comparison -->
+          <div class="showcase-row">
+            <div class="showcase-text reveal-slide-left">
+              <div class="showcase-badge">05 — Multi-Version Evaluation</div>
+              <h3 class="showcase-heading">Side-by-Side Resume Benchmark Comparison</h3>
+              <p class="showcase-paragraph">
+                Compare multiple resume versions side by side to determine which draft yields the highest ATS score and strongest alignment with target job profiles.
+              </p>
+              <ul class="showcase-highlights">
+                <li class="showcase-item"><span class="check-icon">✓</span> Head-to-head ATS score metrics</li>
+                <li class="showcase-item"><span class="check-icon">✓</span> Keyword density comparison</li>
+                <li class="showcase-item"><span class="check-icon">✓</span> Iterative improvement history</li>
+              </ul>
+            </div>
+            <div class="showcase-mockup reveal-slide-right">
+              <div class="macbook-mockup">
+                <div class="mockup-header">
+                  <div class="dots"><span class="dot dot-red"></span><span class="dot dot-yellow"></span><span class="dot dot-green"></span></div>
+                  <div class="mockup-address-bar">🔒 talentmatchai.app/compare-resume</div>
+                </div>
+                <div class="mockup-body">
+                  <img src="assets/screenshots/Compare_resume.png" alt="Compare Resume Screen" class="mockup-img" loading="lazy">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ----------------------------------------------------------------------
+         ARCHITECTURE SECTION (HTML/CSS ONLY)
+    ----------------------------------------------------------------------- -->
+    <section class="section" id="architecture">
+      <div class="container">
+        <div class="section-header reveal-fade">
+          <div class="section-tag">System Architecture</div>
+          <h2 class="section-title">High-Performance Tech Pipeline</h2>
+          <p class="section-subtitle">
+            Built with a decoupled full-stack architecture ensuring low-latency parsing, secure auth state management, and real-time LLM stream response.
+          </p>
+        </div>
+
+        <div class="arch-diagram reveal-zoom">
+          <!-- Node 1: Frontend -->
+          <div class="arch-node">
+            <span class="node-icon">💻</span>
+            <div class="node-title">Frontend</div>
+            <div class="node-tech">HTML / CSS / JS</div>
+          </div>
+
+          <!-- Connector 1 -->
+          <div class="arch-connector">
+            <div class="connector-line">
+              <div class="pulse-dot"></div>
+            </div>
+            <span class="connector-arrow">➔</span>
+          </div>
+
+          <!-- Node 2: Backend -->
+          <div class="arch-node">
+            <span class="node-icon">⚡</span>
+            <div class="node-title">Backend API</div>
+            <div class="node-tech">FastAPI & spaCy</div>
+          </div>
+
+          <!-- Connector 2 -->
+          <div class="arch-connector">
+            <div class="connector-line">
+              <div class="pulse-dot" style="animation-delay: 0.8s;"></div>
+            </div>
+            <span class="connector-arrow">➔</span>
+          </div>
+
+          <!-- Node 3: Gemini AI -->
+          <div class="arch-node">
+            <span class="node-icon">🧠</span>
+            <div class="node-title">AI Engine</div>
+            <div class="node-tech">Gemini 2.5 Flash</div>
+          </div>
+
+          <!-- Connector 3 -->
+          <div class="arch-connector">
+            <div class="connector-line">
+              <div class="pulse-dot" style="animation-delay: 1.6s;"></div>
+            </div>
+            <span class="connector-arrow">➔</span>
+          </div>
+
+          <!-- Node 4: Supabase -->
+          <div class="arch-node">
+            <span class="node-icon">🗄️</span>
+            <div class="node-title">Database & Auth</div>
+            <div class="node-tech">Supabase Postgres</div>
+          </div>
+
+          <!-- Connector 4 -->
+          <div class="arch-connector">
+            <div class="connector-line">
+              <div class="pulse-dot" style="animation-delay: 2.2s;"></div>
+            </div>
+            <span class="connector-arrow">➔</span>
+          </div>
+
+          <!-- Node 5: PDF -->
+          <div class="arch-node">
+            <span class="node-icon">📥</span>
+            <div class="node-title">PDF Engine</div>
+            <div class="node-tech">Report Generator</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ----------------------------------------------------------------------
+         WORKFLOW TIMELINE SECTION
+    ----------------------------------------------------------------------- -->
+    <section class="section" id="workflow">
+      <div class="container">
+        <div class="section-header reveal-fade">
+          <div class="section-tag">User Journey</div>
+          <h2 class="section-title">6-Step Optimization Workflow</h2>
+          <p class="section-subtitle">
+            From initial resume upload to downloading your tailored ATS-optimized PDF report in seconds.
+          </p>
+        </div>
+
+        <div class="workflow-timeline">
+          <div class="workflow-step reveal-fade delay-100">
+            <div class="step-number">01</div>
+            <h4 class="step-title">Upload Resume</h4>
+            <p class="step-desc">Drag and drop your PDF resume into the parser module.</p>
+          </div>
+
+          <div class="workflow-step reveal-fade delay-200">
+            <div class="step-number">02</div>
+            <h4 class="step-title">Analyze</h4>
+            <p class="step-desc">spaCy NLP parses structure, experience & skills.</p>
+          </div>
+
+          <div class="workflow-step reveal-fade delay-300">
+            <div class="step-number">03</div>
+            <h4 class="step-title">Upload JD</h4>
+            <p class="step-desc">Paste target job description for alignment checks.</p>
+          </div>
+
+          <div class="workflow-step reveal-fade delay-400">
+            <div class="step-number">04</div>
+            <h4 class="step-title">ATS Score</h4>
+            <p class="step-desc">Get instant formatting and keyword match ratings.</p>
+          </div>
+
+          <div class="workflow-step reveal-fade delay-500">
+            <div class="step-number">05</div>
+            <h4 class="step-title">AI Assistant</h4>
+            <p class="step-desc">Refine bullets with Gemini 2.5 Flash recommendations.</p>
+          </div>
+
+          <div class="workflow-step reveal-fade delay-500">
+            <div class="step-number">06</div>
+            <h4 class="step-title">Download PDF</h4>
+            <p class="step-desc">Export your formatted diagnostic report instantly.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ----------------------------------------------------------------------
+         TECHNOLOGY STACK MATRIX
+    ----------------------------------------------------------------------- -->
+    <section class="section" id="techstack">
+      <div class="container">
+        <div class="section-header reveal-fade">
+          <div class="section-tag">Stack & Infrastructure</div>
+          <h2 class="section-title">Engineered with Cutting-Edge Tools</h2>
+        </div>
+
+        <div class="tech-grid">
+          <div class="glass-card tech-card reveal-fade delay-100">
+            <div class="tech-icon">⚡</div>
+            <div>
+              <div class="tech-label">Backend Framework</div>
+              <div class="tech-name">FastAPI</div>
+            </div>
+          </div>
+
+          <div class="glass-card tech-card reveal-fade delay-200">
+            <div class="tech-icon">🌐</div>
+            <div>
+              <div class="tech-label">Frontend</div>
+              <div class="tech-name">Vanilla HTML/CSS/JS</div>
+            </div>
+          </div>
+
+          <div class="glass-card tech-card reveal-fade delay-300">
+            <div class="tech-icon">⚡</div>
+            <div>
+              <div class="tech-label">Database</div>
+              <div class="tech-name">Supabase Postgres</div>
+            </div>
+          </div>
+
+          <div class="glass-card tech-card reveal-fade delay-400">
+            <div class="tech-icon">🔐</div>
+            <div>
+              <div class="tech-label">Authentication</div>
+              <div class="tech-name">Supabase Auth</div>
+            </div>
+          </div>
+
+          <div class="glass-card tech-card reveal-fade delay-100">
+            <div class="tech-icon">🧠</div>
+            <div>
+              <div class="tech-label">AI Language Model</div>
+              <div class="tech-name">Gemini 2.5 Flash</div>
+            </div>
+          </div>
+
+          <div class="glass-card tech-card reveal-fade delay-200">
+            <div class="tech-icon">🔤</div>
+            <div>
+              <div class="tech-label">NLP Processing</div>
+              <div class="tech-name">spaCy Engine</div>
+            </div>
+          </div>
+
+          <div class="glass-card tech-card reveal-fade delay-300">
+            <div class="tech-icon">▲</div>
+            <div>
+              <div class="tech-label">Frontend Host</div>
+              <div class="tech-name">Vercel</div>
+            </div>
+          </div>
+
+          <div class="glass-card tech-card reveal-fade delay-400">
+            <div class="tech-icon">🚀</div>
+            <div>
+              <div class="tech-label">Backend Host</div>
+              <div class="tech-name">Render</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ----------------------------------------------------------------------
+         METRICS & STATISTICS COUNTER
+    ----------------------------------------------------------------------- -->
+    <section class="section">
+      <div class="container">
+        <div class="stats-grid reveal-zoom">
+          <div>
+            <div class="stat-number" data-target="98" data-suffix="%">0%</div>
+            <div class="stat-label">Resume Analysis Accuracy</div>
+          </div>
+          <div>
+            <div class="stat-number" data-target="8" data-suffix="+">0</div>
+            <div class="stat-label">Core AI Intelligence Modules</div>
+          </div>
+          <div>
+            <div class="stat-number" data-target="3" data-prefix="<" data-suffix="s">0s</div>
+            <div class="stat-label">Real-Time Processing Speed</div>
+          </div>
+          <div>
+            <div class="stat-number" data-target="100" data-suffix="%">0%</div>
+            <div class="stat-label">Tailored Career Recommendations</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ----------------------------------------------------------------------
+         DEVELOPER SECTION
+    ----------------------------------------------------------------------- -->
+    <section class="section" id="developer">
+      <div class="container">
+        <div class="section-header reveal-fade">
+          <div class="section-tag">Creator & Developer</div>
+          <h2 class="section-title">Behind the Project</h2>
+        </div>
+
+        <div class="dev-card-wrapper reveal-zoom">
+          <div class="glass-card dev-card">
+            <div class="dev-avatar-container">
+              <div class="dev-avatar">
+                <div class="dev-avatar-inner">SB</div>
+              </div>
+            </div>
+
+            <div class="dev-info">
+              <h3>Soorya Bhat</h3>
+              <div class="dev-role">AI & Data Science Engineering Student</div>
+              
+              <div class="dev-tags">
+                <span class="dev-tag">Artificial Intelligence</span>
+                <span class="dev-tag">Machine Learning</span>
+                <span class="dev-tag">Data Science</span>
+                <span class="dev-tag">Full Stack AI Applications</span>
+              </div>
+
+              <div class="dev-socials">
+                <button class="btn btn-primary btn-sm btn-profile" id="dev-btn-github">
+                  <svg class="btn-icon" viewBox="0 0 24 24"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+                  GitHub Profile
+                </button>
+
+                <button class="btn btn-secondary btn-sm btn-linkedin" id="dev-btn-linkedin">
+                  <svg class="btn-icon" viewBox="0 0 24 24"><path d="M19 3a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14m-.5 15.5v-5.3a3.26 3.26 0 0 0-3.26-3.26c-.85 0-1.84.52-2.28 1.3v-1.11h-2.79v8.37h2.79v-4.93c0-.77.62-1.4 1.39-1.4a1.4 1.4 0 0 1 1.4 1.4v4.93h2.75M6.88 8.56a1.68 1.68 0 0 0 1.68-1.68c0-.93-.75-1.69-1.68-1.69a1.69 1.69 0 0 0-1.69 1.69c0 .93.76 1.68 1.69 1.68m1.39 9.94v-8.37H5.5v8.37h2.77z"/></svg>
+                  LinkedIn
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ----------------------------------------------------------------------
+       FOOTER SECTION
+  ----------------------------------------------------------------------- -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-brand">
+          <a href="#" class="nav-logo">
+            <div class="logo-badge">⚡</div>
+            <span>TalentMatch <span class="text-gradient">AI</span></span>
+          </a>
+          <p class="text-muted" style="max-width: 380px;">
+            AI-Powered Resume Analysis, ATS Optimization & Career Intelligence Platform.
+          </p>
+        </div>
+
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+          <button class="btn btn-secondary btn-sm btn-demo">Launch Application</button>
+          <button class="btn btn-secondary btn-sm btn-backend">Backend API</button>
+          <button class="btn btn-secondary btn-sm btn-github">GitHub Repository</button>
+        </div>
+      </div>
+
+      <div class="footer-bottom">
+        <p>Made with ❤️ using <strong>FastAPI</strong>, <strong>Supabase</strong>, <strong>Gemini AI</strong>, and <strong>spaCy</strong></p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="assets/js/glass-effects.js"></script>
+  <script src="assets/js/animations.js"></script>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>

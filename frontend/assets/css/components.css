@@ -534,3 +534,82 @@
 .upload-progress-wrap.active {
   display: block;
 }
+
+/* ==========================================================================
+   Responsive Tables, Touch Accessibility & Mobile Form Overrides
+   ========================================================================== */
+
+/* Touch-Friendly Interactive Elements (Min 44px height) */
+.btn {
+  min-height: 44px;
+}
+
+.btn-sm {
+  min-height: 38px;
+}
+
+.sidebar-link {
+  min-height: 44px;
+}
+
+/* Responsive Table Scroll Container */
+.table-responsive,
+.comparison-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 1rem;
+  border-radius: var(--border-radius-sm);
+}
+
+.comparison-table,
+.table-responsive table {
+  width: 100%;
+  min-width: 600px;
+  border-collapse: collapse;
+}
+
+.comparison-table th,
+.comparison-table td,
+.table-responsive th,
+.table-responsive td {
+  padding: 0.85rem 1rem;
+  text-align: left;
+  white-space: nowrap;
+}
+
+/* Mobile Viewport Form Stack & Padding Rules */
+@media (max-width: 768px) {
+  .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .btn-group {
+    flex-direction: column;
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .dropzone {
+    padding: 1.75rem 1rem;
+  }
+
+  .dropzone-icon {
+    font-size: 2.2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .modal-dialog {
+    width: 95%;
+    max-width: 100%;
+    margin: 1rem;
+    padding: 1.25rem;
+  }
+
+  .form-row,
+  .form-grid {
+    flex-direction: column !important;
+    grid-template-columns: 1fr !important;
+  }
+}

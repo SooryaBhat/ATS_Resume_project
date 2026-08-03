@@ -306,28 +306,110 @@
   margin-bottom: 0.25rem;
 }
 
-/* Mobile Sidebar Toggle */
+/* Sidebar Backdrop Overlay */
+.sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(11, 15, 25, 0.75);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 990;
+  opacity: 0;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-backdrop.active {
+  display: block;
+  opacity: 1;
+}
+
+/* Mobile Sidebar Toggle Button */
 .mobile-nav-toggle {
   display: none;
   background: none;
   border: none;
-  font-size: 1.4rem;
+  font-size: 1.3rem;
   color: var(--text-primary);
   cursor: pointer;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--border-radius-sm);
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-fast);
+}
+
+.mobile-nav-toggle:hover {
+  background: var(--bg-tertiary);
+  color: var(--accent-primary);
 }
 
 @media (max-width: 1024px) {
   .col-span-8, .col-span-6, .col-span-4, .col-span-3 { grid-column: span 12; }
+  
   .app-sidebar {
     position: fixed;
-    left: -100%;
     top: 0;
-  }
-  .app-sidebar.active {
     left: 0;
+    bottom: 0;
+    width: 280px;
+    max-width: 85vw;
+    height: 100vh;
+    transform: translateX(-100%);
+    z-index: 1000;
+    box-shadow: var(--shadow-lg);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
+
+  .app-sidebar.active {
+    transform: translateX(0);
+  }
+
   .mobile-nav-toggle {
-    display: block;
+    display: flex;
   }
+
   .header-search-wrap { display: none; }
+  
+  .app-header {
+    padding: 0 1rem;
+  }
+
+  .page-view {
+    padding: 1.25rem 1rem;
+  }
+
+  .welcome-banner {
+    padding: 1.5rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .welcome-title {
+    font-size: 1.4rem;
+  }
+
+  .welcome-desc {
+    font-size: 0.92rem;
+  }
+
+  .banner-decoration {
+    font-size: 8rem;
+    right: -30px;
+    bottom: -20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .dashboard-card {
+    padding: 1rem;
+  }
+  .card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  .header-page-title {
+    font-size: 1.05rem;
+  }
 }
